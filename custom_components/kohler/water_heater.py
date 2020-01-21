@@ -21,7 +21,6 @@ import logging
 DOMAIN = 'kohler'
 _LOGGER = logging.getLogger(__name__)
 
-KOHLER_TO_HASS_STATE = {"On": STATE_ON, "Off": STATE_OFF}  # Paused, Error, ""
 SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -111,8 +110,7 @@ class KohlerWaterHeater(WaterHeaterDevice):
     @property
     def current_operation(self):
         """Return current operation ie. on, off."""
-        # Go get the current mode.
-        return KOHLER_TO_HASS_STATE.get(self._current_mode)
+        return self._current_mode
 
     @property
     def operation_list(self):
