@@ -1,0 +1,9 @@
+{
+    "homeassistant": "0.104.2",
+    "domain": "kohler",
+    "name": "Kohler",
+    "documentation": "https://github.com/niemyjski/homeassistant-kohler",
+    "dependencies": [],
+    "codeowners": ["niemyjski"],
+    "requirements": ["kohler==0.0.2"]
+}
