@@ -18,10 +18,8 @@ SUPPORT_FLAGS_HEATER = (
     SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE
 )
 
-import logging
-_LOGGER = logging.getLogger(__name__)
-
 SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Kohler platform."""
@@ -78,6 +76,8 @@ class KohlerWaterHeater(WaterHeaterDevice):
         if temp is not None:
             if self._current_mode == STATE_ON:
                 self._data.turnOnShower(temp)
+            else:
+                self._data.setTargetTemperature(temp)
             self._target_temperature = temp
 
     @property
