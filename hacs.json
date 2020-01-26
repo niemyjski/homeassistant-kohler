@@ -1,0 +1,8 @@
+{
+    "name": "Kohler",
+    "domains": [
+        "light",
+        "water_heater"
+    ],
+    "render_readme": true
+}

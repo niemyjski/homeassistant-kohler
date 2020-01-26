@@ -3,7 +3,7 @@
     "domain": "kohler",
     "name": "Kohler",
     "documentation": "https://github.com/niemyjski/homeassistant-kohler",
+    "requirements": ["kohler>=0.0.3"],
     "dependencies": [],
-    "codeowners": ["niemyjski"],
-    "requirements": ["kohler==0.0.3"]
+    "codeowners": ["niemyjski"]
 }
