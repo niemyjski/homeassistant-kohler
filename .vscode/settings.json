@@ -1,6 +1,11 @@
 {
   "cSpell.words": [
+    "Alexa",
+    "HACS",
     "Kohler",
-    "hass"
-  ]
+    "codeowners",
+    "hass",
+    "homeassistant"
+  ],
+  "python.pythonPath": "venv/bin/python"
 }
