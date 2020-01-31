@@ -1,2 +1,2 @@
-kohler>=0.0.4
+kohler>=0.0.5
 homeassistant
