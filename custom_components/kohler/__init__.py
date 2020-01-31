@@ -122,10 +122,10 @@ class KohlerData:
     def _getBinarySensors(self):
         sensors = []
         for valve in range(1, 2):
-            id = f"valve{valve}"
+            valveId = f"valve{valve}"
             sensors.append(KohlerBinarySensor(
-                id,
-                id,
+                valveId,
+                valveId,
                 None,
                 "On",
                 "mdi:valve-open",
@@ -134,6 +134,20 @@ class KohlerData:
                 self.isValveInstalled(valve),
                 f"valve{valve}_Currentstatus"
             ))
+
+            for outlet in range(1, 6):
+                outletId = f"{valveId}outlet{outlet}"
+                sensors.append(KohlerBinarySensor(
+                    outletId,
+                    outletId,
+                    None,
+                    "On",
+                    "mdi:valve-open",
+                    "mdi:valve-closed",
+                    f"Kohler Valve {valve} Outlet {outlet}",
+                    self.isOutletInstalled(valve, outlet),
+                    outletId
+                ))
 
         sensors.append(KohlerBinarySensor(
             "shower",
@@ -188,7 +202,8 @@ class KohlerData:
 
         outlets = ""
         for outlet in range(1, outletCount):
-            if self.isOutletInstalled(valve, outlet):
+            # NOTE: Turn on last used outlets for now.
+            if self.isOutletOn(valve, outlet):
                 outlets += str(outlet)
 
         return 0 if not outlets else int(outlets)
@@ -200,6 +215,9 @@ class KohlerData:
         return self.getValue(f"valve{valve}_installed", False)
 
     def isOutletInstalled(self, valve, outlet):
+        return self.getValue(f"valve{valve}_outlet{outlet}_func") is not None
+
+    def isOutletOn(self, valve, outlet):
         return self.getSystemInfo(f"valve{valve}outlet{outlet}", False)
 
     def getCurrentTemperature(self):
