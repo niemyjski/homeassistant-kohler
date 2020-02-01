@@ -19,7 +19,7 @@ from kohler import Kohler
 import logging
 _LOGGER = logging.getLogger(__name__)
 
-ACCEPT_LIABILITY_TERMS = "accept_liability_terms"
+CONF_ACCEPT_LIABILITY_TERMS = "accept_liability_terms"
 
 DOMAIN = "kohler"
 DATA_KOHLER = "kohler"
@@ -31,7 +31,8 @@ NOTIFICATION_ID = "kohler_notification"
 # Validation of the user's configuration
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
-        vol.Required(CONF_HOST): cv.string
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_ACCEPT_LIABILITY_TERMS): cv.boolean
     })
 }, extra=vol.ALLOW_EXTRA)
 
@@ -39,8 +40,7 @@ CONFIG_SCHEMA = vol.Schema({
 def setup(hass, config):
     conf = config[DOMAIN]
 
-    acceptedTerms: str = conf.get(ACCEPT_LIABILITY_TERMS)
-    if (acceptedTerms is None or bool(acceptedTerms) is False):
+    if not conf.get(CONF_ACCEPT_LIABILITY_TERMS):
         _LOGGER.error("Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability.")
         hass.components.persistent_notification.create(
             "Please read and accept the Waiver Of liability.",
@@ -48,7 +48,6 @@ def setup(hass, config):
             notification_id=NOTIFICATION_ID
         )
         return False
-
 
     host: str = conf.get(CONF_HOST)
     try:
