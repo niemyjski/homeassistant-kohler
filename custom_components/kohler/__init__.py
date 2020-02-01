@@ -19,6 +19,8 @@ from kohler import Kohler
 import logging
 _LOGGER = logging.getLogger(__name__)
 
+ACCEPT_LIABILITY_TERMS = "accept_liability_terms"
+
 DOMAIN = "kohler"
 DATA_KOHLER = "kohler"
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
@@ -36,8 +38,19 @@ CONFIG_SCHEMA = vol.Schema({
 
 def setup(hass, config):
     conf = config[DOMAIN]
-    host: str = conf.get(CONF_HOST)
 
+    acceptedTerms: str = conf.get(ACCEPT_LIABILITY_TERMS)
+    if (acceptedTerms is None or bool(acceptedTerms) is False):
+        _LOGGER.error("Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability.")
+        hass.components.persistent_notification.create(
+            "Please read and accept the Waiver Of liability.",
+            title=NOTIFICATION_TITLE,
+            notification_id=NOTIFICATION_ID
+        )
+        return False
+
+
+    host: str = conf.get(CONF_HOST)
     try:
         api = Kohler(kohlerHost=host)
         data = KohlerData(hass, api)
