@@ -27,7 +27,7 @@ kohler:
 
 ## Waiver Of liability
 
-This agreement releases Blake Niemyjski from all liability relating to injuries or property damage that may occur while using this shower component (installing it, turning on water valves, reading device state, etc. By signing this agreement, I agree to hold Blake Niemyjski entirely free from any liability, including financial responsibility for injuries or property damage incurred, regardless of whether injuries are caused by negligence.
+This agreement releases Blake Niemyjski from all liability relating to injuries or property damage that may occur while using this shower component (installing it, turning on water valves, reading device state, etc. By accepting this agreement, I agree to hold Blake Niemyjski entirely free from any liability, including financial responsibility for injuries or property damage incurred, regardless of whether injuries are caused by negligence.
 
 I also acknowledge the risks involved in controlling water valves and devices. These include but are not limited to water damage, damage to home, damage to property, damage to devices, or death. I swear that I am participating voluntarily, and that all risks have been made clear to me. Additionally, I do not have any conditions that will increase my likelihood of experiencing injuries while engaging in this activity.
 
