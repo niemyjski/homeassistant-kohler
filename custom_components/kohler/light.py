@@ -5,15 +5,15 @@ from homeassistant.components.light import (
     Light
 )
 
-from . import DATA_KOHLER
+from . import DATA_KOHLER, KohlerData, KohlerDataLight
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Kohler Light platform."""
-    data = hass.data[DATA_KOHLER]
+    data: KohlerData = hass.data[DATA_KOHLER]
 
     # Add devices
-    lights = []
+    lights: list[KohlerLight] = []
     for light in data.lights:
         if light.installed:
             lights.append(KohlerLight(data, light))
@@ -24,7 +24,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 class KohlerLight(Light):
     """Representation of an Kohler Light."""
 
-    def __init__(self, data, light):
+    def __init__(self, data: KohlerData, light: KohlerDataLight):
         """Initialize a Kohler Light."""
         self._data = data
         self._light = light
@@ -43,12 +43,12 @@ class KohlerLight(Light):
         """Instruct the light to turn on."""
         brightness = kwargs.get(ATTR_BRIGHTNESS, self.brightness)
         intensity = self.to_kohler_level(brightness)
-        self._data.lightOn(self._light.id, intensity)
+        self._data.turnlightOn(self._light.id, intensity)
         self._light.brightness = intensity
 
     def turn_off(self, **kwargs):
         """Instruct the light to turn off."""
-        self._data.lightOff(self._light.id, self._light.brightness)
+        self._data.turnlightOff(self._light.id)
 
     @property
     def supported_features(self):

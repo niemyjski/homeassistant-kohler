@@ -1,7 +1,7 @@
 from datetime import timedelta
+from typing import Optional, Union
+
 import homeassistant.helpers.config_validation as cv
-import logging
-import requests
 import voluptuous as vol
 from homeassistant.const import (
     CONF_HOST,
@@ -10,8 +10,13 @@ from homeassistant.const import (
 )
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
+
+import requests
 from requests.exceptions import HTTPError, ConnectTimeout
 
+from kohler import Kohler
+
+import logging
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "kohler"
@@ -30,10 +35,8 @@ CONFIG_SCHEMA = vol.Schema({
 
 
 def setup(hass, config):
-    from kohler import Kohler
-
     conf = config[DOMAIN]
-    host = conf.get(CONF_HOST)
+    host: str = conf.get(CONF_HOST)
 
     try:
         api = Kohler(kohlerHost=host)
@@ -57,10 +60,60 @@ def setup(hass, config):
     return True
 
 
+class KohlerDataEntity():
+    def __init__(
+        self,
+        id: str,
+        deviceId: str,
+        name: str = None,
+        installed: bool = False
+    ):
+        self.id = id
+        self.deviceId = deviceId
+        self.name = name
+        self.installed = installed
+
+
+class KohlerDataLight(KohlerDataEntity):
+    def __init__(
+        self,
+        id: str,
+        deviceId: str,
+        name: str = None,
+        installed: bool = False
+    ):
+        super().__init__(id, deviceId, name, installed)
+        self.brightness = 0
+
+
+class KohlerDataBinarySensor(KohlerDataEntity):
+    def __init__(
+        self,
+        id: str,
+        deviceId: str,
+        deviceClass: Optional[str],
+        stateOn: Union[str, bool, int, float],
+        iconOn: str,
+        iconOff: str,
+        name: str,
+        installed: bool,
+        systemKey: str = None,
+        valueKey: str = None
+    ):
+        super().__init__(id, deviceId, name, installed)
+        self.deviceClass = deviceClass
+        self.stateOn = stateOn
+        self.state = False
+        self.iconOn = iconOn
+        self.iconOff = iconOff
+        self.systemKey = systemKey
+        self.valueKey = valueKey
+
+
 class KohlerData:
     """Kohler data object."""
 
-    def __init__(self, hass, api):
+    def __init__(self, hass, api: Kohler):
         """Init Kohler data object."""
         self._hass = hass
         self._api = api
@@ -77,7 +130,7 @@ class KohlerData:
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update values: %s", str(ex))
 
-    def getValue(self, key, defaultValue=None):
+    def getValue(self, key: str, defaultValue=None):
         self._updateValues()
         return defaultValue if key not in self._values else self._values[key]
 
@@ -98,32 +151,38 @@ class KohlerData:
         """Return a list of lights."""
         return self._lights
 
-    @property
-    def binarySensors(self):
-        """Return a list of binary sensors."""
-        return self._binarySensors
-
     def _getLights(self):
-        lights = []
+        lights: list[KohlerDataLight] = []
         for lightId in range(1, 3):
-            lights.append(KohlerLight(lightId, f"light{lightId}"))
+            lights.append(KohlerDataLight(str(lightId), f"light{lightId}"))
 
         for light in lights:
             self.updateLight(light)
 
         return lights
 
-    def updateLight(self, light):
+    def updateLight(self, light: KohlerDataLight):
         installedKey = f"{light.deviceId}_installed"
         light.installed = self.getValue(installedKey, defaultValue=False)
         light.name = "Kohler " + self.getValue(f"{light.deviceId}_name")
         light.brightness = self.getValue(f"{light.deviceId}_level", 100)
 
+    def turnlightOn(self, lightId: str, intensity: int):
+        self._api.lightOn(int(lightId), intensity)
+
+    def turnlightOff(self, lightId: str):
+        self._api.lightOff(int(lightId))
+
+    @property
+    def binarySensors(self):
+        """Return a list of binary sensors."""
+        return self._binarySensors
+
     def _getBinarySensors(self):
-        sensors = []
+        sensors: list[KohlerDataBinarySensor] = []
         for valve in range(1, 2):
             valveId = f"valve{valve}"
-            sensors.append(KohlerBinarySensor(
+            sensors.append(KohlerDataBinarySensor(
                 valveId,
                 valveId,
                 None,
@@ -137,7 +196,7 @@ class KohlerData:
 
             for outlet in range(1, 6):
                 outletId = f"{valveId}outlet{outlet}"
-                sensors.append(KohlerBinarySensor(
+                sensors.append(KohlerDataBinarySensor(
                     outletId,
                     outletId,
                     None,
@@ -149,7 +208,7 @@ class KohlerData:
                     outletId
                 ))
 
-        sensors.append(KohlerBinarySensor(
+        sensors.append(KohlerDataBinarySensor(
             "shower",
             "shower",
             None,
@@ -162,7 +221,7 @@ class KohlerData:
             "shower_on"
         ))
 
-        sensors.append(KohlerBinarySensor(
+        sensors.append(KohlerDataBinarySensor(
             "steam",
             "steam",
             "moisture",
@@ -180,12 +239,14 @@ class KohlerData:
 
         return sensors
 
-    def updateBinarySensor(self, sensor):
+    def updateBinarySensor(self, sensor: KohlerDataBinarySensor):
         state = None
+
         if sensor.systemKey:
             state = self.getSystemInfo(sensor.systemKey)
-        else:
+        elif sensor.valueKey:
             state = self.getValue(sensor.valueKey)
+
         sensor.state = state == sensor.stateOn
 
     def unitOfMeasurement(self):
@@ -195,7 +256,7 @@ class KohlerData:
 
         return TEMP_CELSIUS
 
-    def getInstalledValveOutlets(self, valve=1):
+    def getInstalledValveOutlets(self, valve: int = 1):
         outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
         if outletCount < 1:
             return 0
@@ -208,20 +269,20 @@ class KohlerData:
 
         return 0 if not outlets else int(outlets)
 
-    def isSteamInstalled(self):
+    def isSteamInstalled(self) -> bool:
         return self.getValue("steam_installed", False)
 
-    def isValveInstalled(self, valve):
+    def isValveInstalled(self, valve: int) -> bool:
         return self.getValue(f"valve{valve}_installed", False)
 
-    def isOutletInstalled(self, valve, outlet):
+    def isOutletInstalled(self, valve: int, outlet: int) -> bool:
         return self.getValue(f"valve{valve}_outlet{outlet}_func") is not None
 
-    def isOutletOn(self, valve, outlet):
+    def isOutletOn(self, valve: int, outlet: int) -> bool:
         return self.getSystemInfo(f"valve{valve}outlet{outlet}", False)
 
-    def getCurrentTemperature(self):
-        temps = []
+    def getCurrentTemperature(self) -> Optional[float]:
+        temps: list[float] = []
         for valve in range(1, 2):
             if not self.isValveInstalled(valve):
                 continue
@@ -235,8 +296,8 @@ class KohlerData:
         else:
             return max(temps)
 
-    def getTargetTemperature(self):
-        temps = []
+    def getTargetTemperature(self) -> Optional[float]:
+        temps: list[float] = []
         for valve in range(1, 2):
             if not self.isValveInstalled(valve):
                 continue
@@ -257,7 +318,7 @@ class KohlerData:
 
             self._api.saveVariable(38, temperature, valve=valve)
 
-    def isShowerOn(self):
+    def isShowerOn(self) -> bool:
         return self.getValue("shower_on", False)
 
     def turnOnShower(self, temp=None):
@@ -273,41 +334,3 @@ class KohlerData:
 
     def turnOffShower(self):
         self._api.stopShower()
-
-
-class KohlerEntity():
-    def __init__(self, id, deviceId, name=None, installed=None):
-        self.id = id
-        self.deviceId = deviceId
-        self.name = name
-        self.installed = installed
-
-
-class KohlerLight(KohlerEntity):
-    def __init__(self, id, deviceId, name=None, installed=None):
-        super().__init__(id, deviceId, name, installed)
-        self.brightness = None
-
-
-class KohlerBinarySensor(KohlerEntity):
-    def __init__(
-        self,
-        id,
-        deviceId,
-        deviceClass,
-        stateOn,
-        iconOn,
-        iconOff,
-        name,
-        installed,
-        systemKey = None,
-        valueKey = None
-    ):
-        super().__init__(id, deviceId, name, installed)
-        self.deviceClass = deviceClass
-        self.stateOn = stateOn
-        self.state = None
-        self.iconOn = iconOn
-        self.iconOff = iconOff
-        self.systemKey = systemKey
-        self.valueKey = valueKey

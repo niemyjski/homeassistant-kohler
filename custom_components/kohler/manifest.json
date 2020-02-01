@@ -1,5 +1,5 @@
 {
-    "homeassistant": "0.104.2",
+    "homeassistant": "0.104.3",
     "domain": "kohler",
     "name": "Kohler",
     "documentation": "https://github.com/niemyjski/homeassistant-kohler",

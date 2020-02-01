@@ -3,14 +3,14 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDevice
 )
 
-from . import DATA_KOHLER
+from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Kohler Light platform."""
-    data = hass.data[DATA_KOHLER]
+    data: KohlerData = hass.data[DATA_KOHLER]
 
-    sensors = []
+    sensors: list[KohlerBinarySensor] = []
     for sensor in data.binarySensors:
         if sensor.installed:
             sensors.append(KohlerBinarySensor(data, sensor))
@@ -21,7 +21,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 class KohlerBinarySensor(BinarySensorDevice):
     """Representation of a single binary sensor in a Kohler device."""
 
-    def __init__(self, data, sensor):
+    def __init__(self, data: KohlerData, sensor: KohlerDataBinarySensor):
         """Initialize a Kohler binary sensor."""
         self._data = data
         self._sensor = sensor

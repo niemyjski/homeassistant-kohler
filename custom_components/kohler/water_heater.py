@@ -12,7 +12,7 @@ from homeassistant.const import (
     PRECISION_WHOLE
 )
 
-from . import DATA_KOHLER
+from . import DATA_KOHLER, KohlerData
 
 SUPPORT_FLAGS_HEATER = (
     SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE
@@ -23,13 +23,14 @@ SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Kohler platform."""
-    data = hass.data[DATA_KOHLER]
+    data: KohlerData = hass.data[DATA_KOHLER]
     add_entities([KohlerWaterHeater(data)])
 
 
 class KohlerWaterHeater(WaterHeaterDevice):
     """Representation of a Kohler Shower."""
-    def __init__(self, data):
+
+    def __init__(self, data: KohlerData):
         """Initialize the shower device."""
         self._name = "Kohler Shower"
         self._data = data
