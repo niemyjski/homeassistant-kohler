@@ -37,7 +37,7 @@ class KohlerWaterHeater(WaterHeaterDevice):
         self._current_mode = None
         self._current_temperature = None
         self._target_temperature = None
-        self._unit_of_measurement = None
+        self._unit_of_measurement = data.unitOfMeasurement()
 
     def update(self):
         """Let HA know there has been an update from the Kohler API."""
