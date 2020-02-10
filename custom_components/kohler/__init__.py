@@ -192,7 +192,7 @@ class KohlerData:
 
     def _getBinarySensors(self):
         sensors: list[KohlerDataBinarySensor] = []
-        for valve in range(1, 2):
+        for valve in range(1, 3):
             valveId = f"valve{valve}"
             sensors.append(KohlerDataBinarySensor(
                 valveId,
@@ -206,7 +206,7 @@ class KohlerData:
                 f"valve{valve}_Currentstatus"
             ))
 
-            for outlet in range(1, 6):
+            for outlet in range(1, 7):
                 outletId = f"{valveId}outlet{outlet}"
                 sensors.append(KohlerDataBinarySensor(
                     outletId,
