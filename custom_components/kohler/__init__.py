@@ -66,7 +66,7 @@ def setup(hass, config):
         )
         return False
 
-    for component in ["binary_sensor", "light", "water_heater"]:
+    for component in ["binary_sensor", "water_heater"]:
         discovery.load_platform(hass, component, DOMAIN, {}, config)
 
     return True
