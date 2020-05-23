@@ -3,7 +3,7 @@ from homeassistant.components.water_heater import (
     STATE_ON,
     SUPPORT_OPERATION_MODE,
     SUPPORT_TARGET_TEMPERATURE,
-    WaterHeaterDevice
+    WaterHeaterEntity
 )
 
 from homeassistant.const import (
@@ -27,7 +27,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities([KohlerWaterHeater(data)])
 
 
-class KohlerWaterHeater(WaterHeaterDevice):
+class KohlerWaterHeater(WaterHeaterEntity):
     """Representation of a Kohler Shower."""
 
     def __init__(self, data: KohlerData):

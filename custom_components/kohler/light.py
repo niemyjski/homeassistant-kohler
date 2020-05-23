@@ -1,15 +1,15 @@
-"""Kohler Light Integration"""
+"""Kohler LightEntity Integration"""
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     SUPPORT_BRIGHTNESS,
-    Light
+    LightEntity
 )
 
 from . import DATA_KOHLER, KohlerData, KohlerDataLight
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the Kohler Light platform."""
+    """Set up the Kohler LightEntity platform."""
     data: KohlerData = hass.data[DATA_KOHLER]
 
     # Add devices
@@ -21,7 +21,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities(lights)
 
 
-class KohlerLight(Light):
+class KohlerLight(LightEntity):
     """Representation of an Kohler Light."""
 
     def __init__(self, data: KohlerData, light: KohlerDataLight):
