@@ -2,6 +2,8 @@
 
 Kohler Integration for Home Assistant
 
+> Any and all help is greatly apprecated. Just grab an issue and leave a comment if you have any questions!
+
 Uses the [Kohler Python library](https://github.com/niemyjski/kohler-python) to get device data. Currently this only supports the DTV+ system.
 It would be sweet to add support at a future date for other devices like the smart mirrors (currently installed but not very smart) too ;) PR's are welcomed!
 
