@@ -1,21 +1,20 @@
 from homeassistant.components.water_heater import (
     STATE_OFF,
     STATE_ON,
-    SUPPORT_OPERATION_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
     WaterHeaterEntity
 )
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     TEMP_CELSIUS,
-    PRECISION_WHOLE
+    PRECISION_WHOLE,
+    WaterHeaterEntityFeature
 )
 
 from . import DATA_KOHLER, KohlerData
 
 SUPPORT_FLAGS_HEATER = (
-    SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE
+    WaterHeaterEntityFeature.TARGET_TEMPERATURE | WaterHeaterEntityFeature.OPERATION_MODE
 )
 
 SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
