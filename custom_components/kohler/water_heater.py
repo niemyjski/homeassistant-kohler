@@ -1,14 +1,14 @@
 from homeassistant.components.water_heater import (
     STATE_OFF,
     STATE_ON,
-    WaterHeaterEntity
+    WaterHeaterEntity,
+    WaterHeaterEntityFeature
 )
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     TEMP_CELSIUS,
-    PRECISION_WHOLE,
-    WaterHeaterEntityFeature
+    PRECISION_WHOLE
 )
 
 from . import DATA_KOHLER, KohlerData
