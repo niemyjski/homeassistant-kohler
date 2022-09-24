@@ -196,8 +196,8 @@ class KohlerData:
         for valve in range(1, 3):
             valveId = f"valve{valve}"
             sensors.append(KohlerDataBinarySensor(
-                self.getMacAddress() + valveId,
-                self.getMacAddress() + valveId,
+                self.macAddress() + valveId,
+                self.macAddress() + valveId,
                 None,
                 "On",
                 "mdi:valve-open",
@@ -210,8 +210,8 @@ class KohlerData:
             for outlet in range(1, 7):
                 outletId = f"{valveId}outlet{outlet}"
                 sensors.append(KohlerDataBinarySensor(
-                    self.getMacAddress() + outletId,
-                    self.getMacAddress() + outletId,
+                    self.macAddress() + outletId,
+                    self.macAddress() + outletId,
                     None,
                     "On",
                     "mdi:valve-open",
@@ -222,8 +222,8 @@ class KohlerData:
                 ))
 
         sensors.append(KohlerDataBinarySensor(
-            self.getMacAddress() + "shower",
-            self.getMacAddress() + "shower",
+            self.macAddress() + "shower",
+            self.macAddress() + "shower",
             None,
             True,
             "mdi:shower",
@@ -235,8 +235,8 @@ class KohlerData:
         ))
 
         sensors.append(KohlerDataBinarySensor(
-            self.getMacAddress() + "steam",
-            self.getMacAddress() + "steam",
+            self.macAddress() + "steam",
+            self.macAddress() + "steam",
             "moisture",
             True,
             "mdi:radiator",
