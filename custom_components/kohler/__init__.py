@@ -133,6 +133,7 @@ class KohlerData:
         self._binarySensors = self._getBinarySensors()
         self._values = {}
         self._sysInfo = {}
+        self._values = self._api.values()
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def _updateValues(self):
@@ -195,7 +196,7 @@ class KohlerData:
         for valve in range(1, 3):
             valveId = f"valve{valve}"
             sensors.append(KohlerDataBinarySensor(
-                valveId,
+                self._data.getMacAddress() + valveId,
                 valveId,
                 None,
                 "On",
@@ -209,7 +210,7 @@ class KohlerData:
             for outlet in range(1, 7):
                 outletId = f"{valveId}outlet{outlet}"
                 sensors.append(KohlerDataBinarySensor(
-                    outletId,
+                    self._data.getMacAddress() + outletId,
                     outletId,
                     None,
                     "On",
@@ -221,7 +222,7 @@ class KohlerData:
                 ))
 
         sensors.append(KohlerDataBinarySensor(
-            "shower",
+            self._data.getMacAddress() + "shower",
             "shower",
             None,
             True,
@@ -234,7 +235,7 @@ class KohlerData:
         ))
 
         sensors.append(KohlerDataBinarySensor(
-            "steam",
+            self._data.getMacAddress() + "steam",
             "steam",
             "moisture",
             True,

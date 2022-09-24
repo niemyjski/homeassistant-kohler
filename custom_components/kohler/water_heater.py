@@ -37,6 +37,7 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = None
         self._target_temperature = None
         self._unit_of_measurement = data.unitOfMeasurement()
+        self._id = self._data.macAddress() + "waterheater"
 
     def update(self):
         """Let HA know there has been an update from the Kohler API."""
@@ -48,7 +49,7 @@ class KohlerWaterHeater(WaterHeaterEntity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self._data.macAddress() + "waterheater"
+        return self._id
 
     @property
     def supported_features(self):
