@@ -45,6 +45,7 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = self._data.getCurrentTemperature()
         self._target_temperature = self._data.getTargetTemperature()
         self._unit_of_measurement = self._data.unitOfMeasurement()
+        self._id = self._data.macAddress() + "waterheater"
 
     @property
     def unique_id(self):
