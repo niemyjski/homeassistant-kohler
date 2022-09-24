@@ -268,6 +268,9 @@ class KohlerData:
 
         return TEMP_CELSIUS
 
+    def macAddress(self):
+        return self.getValue("MAC")
+
     def getInstalledValveOutlets(self, valve: int = 1):
         outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
         if outletCount < 1:
