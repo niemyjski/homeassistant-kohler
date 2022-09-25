@@ -4,10 +4,10 @@ from typing import Optional, Union
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
-import voluptuous as vol
 from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
+import voluptuous as vol
 
 import requests
 from requests.exceptions import HTTPError, ConnectTimeout
