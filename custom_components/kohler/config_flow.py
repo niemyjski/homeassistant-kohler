@@ -1,4 +1,4 @@
-"""Config flow for Satel Integra."""
+"""Config flow for Kohler DTV."""
 from __future__ import annotations
 
 import logging

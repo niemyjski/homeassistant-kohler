@@ -18,12 +18,6 @@ import logging
 
 from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
 
-PLATFORMS: list[Platform] = [
-    Platform.BINARY_SENSOR,
-    Platform.LIGHT,
-    Platform.WATER_HEATER,
-]
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -108,7 +102,7 @@ def initialize_integration(hass, conf):
         )
         return False
 
-    for component in ["binary_sensor", "water_heater"]:
+    for component in [Platform.BINARY_SENSOR, Platform.WATER_HEATER]:
         discovery.load_platform(hass, component, DOMAIN, {}, conf)
 
     return True
