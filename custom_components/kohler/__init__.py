@@ -4,7 +4,7 @@ from typing import Optional, Union
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT
+from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT, Platform
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
 import voluptuous as vol
@@ -17,6 +17,12 @@ from kohler import Kohler
 import logging
 
 from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
+
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.LIGHT,
+    Platform.WATER_HEATER,
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +68,12 @@ async def async_setup(hass, config):
             )
         )
 
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    hass.data.pop(DOMAIN)
     return True
 
 
