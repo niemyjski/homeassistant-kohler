@@ -27,6 +27,7 @@ NOTIFICATION_ID = "kohler_notification"
 
 # Validation of the user's configuration
 CONFIG_SCHEMA = vol.Schema(
+    cv.deprecated(DOMAIN),
     {
         DOMAIN: vol.Schema(
             {
@@ -44,6 +45,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # This isn't really good, but it's a quick way to make this work since it requires synchronous calls
     return await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+
 
 async def async_setup(hass, config):
     # Config flow is done separately
