@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import Optional, Union
 
 import homeassistant.helpers.config_validation as cv
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
 import voluptuous as vol
 from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT
@@ -46,14 +46,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # (initialize_integration(hass, entry.data)
 
 
-def setup(hass, config):
+async def async_setup(hass, config):
     # Config flow is done separately
     if DOMAIN not in config:
         return True
 
-    conf = config[DOMAIN]
+    hass.async_create_task(
+        hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_IMPORT},
+            data=config[DOMAIN],
+        )
+    )
 
-    return initialize_integration(hass, conf)
+    return True
 
 
 def initialize_integration(hass, conf):

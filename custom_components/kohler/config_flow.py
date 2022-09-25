@@ -45,3 +45,12 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(data_schema),
             errors=errors,
         )
+
+    async def async_step_import(self, config: dict[str, Any]) -> FlowResult:
+        """Import a config entry."""
+
+        user_input = {
+            CONF_HOST: config[CONF_HOST],
+            CONF_ACCEPT_LIABILITY_TERMS: config.get(CONF_ACCEPT_LIABILITY_TERMS),
+        }
+        return await self.async_step_user(user_input)
