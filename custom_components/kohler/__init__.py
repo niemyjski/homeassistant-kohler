@@ -16,9 +16,10 @@ from kohler import Kohler
 
 import logging
 
+from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
+
 _LOGGER = logging.getLogger(__name__)
 
-from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
 
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 
