@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from kohler import Kohler
 
 
 import voluptuous as vol
@@ -27,12 +28,16 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            if user_input[CONF_ACCEPT_LIABILITY_TERMS]:
+            if not user_input[CONF_ACCEPT_LIABILITY_TERMS]:
+                errors[CONF_ACCEPT_LIABILITY_TERMS] = "accept_terms"
+            elif not await self.hass.async_add_executor_job(
+                self.test_connection, user_input[CONF_HOST]
+            ):
+                errors[CONF_HOST] = "cannot_connect"
+            else:
                 return self.async_create_entry(
                     title=user_input[CONF_HOST], data=user_input
                 )
-            else:
-                errors[CONF_ACCEPT_LIABILITY_TERMS] = "accept_terms"
 
         # Validation of the user's configuration
         data_schema = {
@@ -54,3 +59,11 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             CONF_ACCEPT_LIABILITY_TERMS: config.get(CONF_ACCEPT_LIABILITY_TERMS),
         }
         return await self.async_step_user(user_input)
+
+    def test_connection(self, host) -> bool:
+        try:
+            api = Kohler(kohlerHost=host)
+            api.values()
+            return True
+        except Exception:
+            return False

@@ -10,7 +10,8 @@
             }
         },
         "error": {
-            "accept_terms": "You must accept the Liability Terms"
+            "accept_terms": "You must accept the Liability Terms",
+            "cannot_connect": "Cannot connect to the specified address or it is not a Kohler DTV+"
         }
     }
 }
