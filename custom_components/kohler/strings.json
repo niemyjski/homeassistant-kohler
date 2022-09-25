@@ -2,11 +2,15 @@
     "config": {
         "step": {
             "user": {
+                "title": "Kohler DTV+ Setup",
                 "data": {
                     "host": "Host",
                     "accept_liability_terms": "Accept Liability Terms"
                 }
-            }        
+            }
+        },
+        "error": {
+            "accept_terms": "You must accept the Liability Terms"
         }
     }
 }

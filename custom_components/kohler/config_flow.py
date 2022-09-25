@@ -24,9 +24,15 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle a flow initialized by the user."""
+        errors: dict[str, str] = {}
 
         if user_input is not None:
-            return self.async_create_entry(title=user_input[CONF_HOST], data=user_input)
+            if user_input[CONF_ACCEPT_LIABILITY_TERMS]:
+                return self.async_create_entry(
+                    title=user_input[CONF_HOST], data=user_input
+                )
+            else:
+                errors[CONF_ACCEPT_LIABILITY_TERMS] = "accept_terms"
 
         # Validation of the user's configuration
         data_schema = {
@@ -37,4 +43,5 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(data_schema),
+            errors=errors,
         )
