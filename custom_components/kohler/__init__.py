@@ -97,7 +97,7 @@ def initialize_integration(hass, conf):
     host: str = conf.get(CONF_HOST)
     try:
         api = Kohler(kohlerHost=host)
-        data = KohlerData(hass, api)
+        data = KohlerData(hass, api, conf)
 
         hass.data[DATA_KOHLER] = data
     except (ConnectTimeout, HTTPError) as ex:
@@ -159,7 +159,7 @@ class KohlerDataBinarySensor(KohlerDataEntity):
 class KohlerData:
     """Kohler data object."""
 
-    def __init__(self, hass, api: Kohler):
+    def __init__(self, hass, api: Kohler, conf):
         """Init Kohler data object."""
         self._hass = hass
         self._api = api
@@ -168,6 +168,7 @@ class KohlerData:
         self._values = {}
         self._sysInfo = {}
         self._values = self._api.values()
+        self._conf = conf
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def _updateValues(self):
@@ -176,6 +177,9 @@ class KohlerData:
             _LOGGER.debug("Updated values")
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update values: %s", str(ex))
+
+    def getConf(self, key: str):
+        return self._conf[key]
 
     def getValue(self, key: str, defaultValue=None):
         self._updateValues()
@@ -313,6 +317,9 @@ class KohlerData:
 
     def macAddress(self):
         return self.getValue("MAC")
+
+    def firmwareVersion(self):
+        return self.getValue("controller_version_string")
 
     def getInstalledValveOutlets(self, valve: int = 1):
         outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))

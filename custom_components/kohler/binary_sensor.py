@@ -1,5 +1,8 @@
 """Kohler Binary Sensor Integration"""
 from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.helpers.entity import DeviceInfo
+from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from homeassistant.const import CONF_HOST
 
 from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
 
@@ -23,6 +26,15 @@ class KohlerBinarySensor(BinarySensorEntity):
         """Initialize a Kohler binary sensor."""
         self._data = data
         self._sensor = sensor
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self._data.macAddress())},
+            manufacturer=MANUFACTURER,
+            configuration_url="http://" + data.getConf(CONF_HOST),
+            default_name=DEFAULT_NAME,
+            model=MODEL,
+            hw_version=self._data.firmwareVersion(),
+            sw_version=self._data.firmwareVersion(),
+        )
 
     @property
     def unique_id(self):
