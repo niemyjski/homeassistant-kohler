@@ -1,12 +1,10 @@
 """Kohler Binary Sensor Integration"""
-from homeassistant.components.binary_sensor import (
-    BinarySensorEntity
-)
+from homeassistant.components.binary_sensor import BinarySensorEntity
 
 from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler BinarySensorEntity platform."""
     data: KohlerData = hass.data[DATA_KOHLER]
 

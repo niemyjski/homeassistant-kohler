@@ -45,7 +45,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kohler DTV from a config entry."""
 
     # This isn't really good, but it's a quick way to make this work since it requires synchronous calls
-    return await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+
+    result = await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+    if result:
+        hass.config_entries.async_setup_platforms(
+            entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+        )
+    return result
 
 
 async def async_setup(hass, config):
@@ -67,8 +73,11 @@ async def async_setup(hass, config):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    hass.data.pop(DOMAIN)
-    return True
+    if unload_ok := await hass.config_entries.async_unload_platforms(
+        entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+    ):
+        hass.data.pop(DOMAIN)
+    return unload_ok
 
 
 def initialize_integration(hass, conf):
@@ -101,9 +110,6 @@ def initialize_integration(hass, conf):
             notification_id=NOTIFICATION_ID,
         )
         return False
-
-    for component in [Platform.BINARY_SENSOR, Platform.WATER_HEATER]:
-        discovery.load_platform(hass, component, DOMAIN, {}, conf)
 
     return True
 
