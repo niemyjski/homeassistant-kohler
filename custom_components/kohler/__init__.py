@@ -2,12 +2,10 @@ from datetime import timedelta
 from typing import Optional, Union
 
 import homeassistant.helpers.config_validation as cv
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 import voluptuous as vol
-from homeassistant.const import (
-    CONF_HOST,
-    TEMP_CELSIUS,
-    TEMP_FAHRENHEIT
-)
+from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
 
@@ -17,6 +15,7 @@ from requests.exceptions import HTTPError, ConnectTimeout
 from kohler import Kohler
 
 import logging
+
 _LOGGER = logging.getLogger(__name__)
 
 from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
@@ -26,18 +25,47 @@ MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 NOTIFICATION_TITLE = "Kohler Setup"
 NOTIFICATION_ID = "kohler_notification"
 
+# Validation of the user's configuration
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_HOST): cv.string,
+                vol.Required(CONF_ACCEPT_LIABILITY_TERMS): cv.boolean,
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Kohler DTV from a config entry."""
+
+    return await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+    # (initialize_integration(hass, entry.data)
 
 
 def setup(hass, config):
+    # Config flow is done separately
+    if DOMAIN not in config:
+        return True
+
     conf = config[DOMAIN]
 
+    return initialize_integration(hass, conf)
+
+
+def initialize_integration(hass, conf):
+
     if not conf.get(CONF_ACCEPT_LIABILITY_TERMS):
-        _LOGGER.error("Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability.")
+        _LOGGER.error(
+            "Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability."
+        )
         hass.components.persistent_notification.create(
             "Please read and accept the Waiver Of liability.",
             title=NOTIFICATION_TITLE,
-            notification_id=NOTIFICATION_ID
+            notification_id=NOTIFICATION_ID,
         )
         return False
 
@@ -54,23 +82,19 @@ def setup(hass, config):
             "You will need to restart hass after fixing."
             "".format(ex),
             title=NOTIFICATION_TITLE,
-            notification_id=NOTIFICATION_ID
+            notification_id=NOTIFICATION_ID,
         )
         return False
 
     for component in ["binary_sensor", "water_heater"]:
-        discovery.load_platform(hass, component, DOMAIN, {}, config)
+        discovery.load_platform(hass, component, DOMAIN, {}, conf)
 
     return True
 
 
-class KohlerDataEntity():
+class KohlerDataEntity:
     def __init__(
-        self,
-        id: str,
-        deviceId: str,
-        name: str = None,
-        installed: bool = False
+        self, id: str, deviceId: str, name: str = None, installed: bool = False
     ):
         self.id = id
         self.deviceId = deviceId
@@ -80,11 +104,7 @@ class KohlerDataEntity():
 
 class KohlerDataLight(KohlerDataEntity):
     def __init__(
-        self,
-        id: str,
-        deviceId: str,
-        name: str = None,
-        installed: bool = False
+        self, id: str, deviceId: str, name: str = None, installed: bool = False
     ):
         super().__init__(id, deviceId, name, installed)
         self.brightness = 0
@@ -102,7 +122,7 @@ class KohlerDataBinarySensor(KohlerDataEntity):
         name: str,
         installed: bool,
         systemKey: str = None,
-        valueKey: str = None
+        valueKey: str = None,
     ):
         super().__init__(id, deviceId, name, installed)
         self.deviceClass = deviceClass
@@ -187,57 +207,65 @@ class KohlerData:
         sensors: list[KohlerDataBinarySensor] = []
         for valve in range(1, 3):
             valveId = f"valve{valve}"
-            sensors.append(KohlerDataBinarySensor(
-                self.macAddress() + valveId,
-                self.macAddress() + valveId,
-                None,
-                "On",
-                "mdi:valve-open",
-                "mdi:valve-closed",
-                f"Kohler Valve {valve}",
-                self.isValveInstalled(valve),
-                f"valve{valve}_Currentstatus"
-            ))
-
-            for outlet in range(1, 7):
-                outletId = f"{valveId}outlet{outlet}"
-                sensors.append(KohlerDataBinarySensor(
-                    self.macAddress() + outletId,
-                    self.macAddress() + outletId,
+            sensors.append(
+                KohlerDataBinarySensor(
+                    self.macAddress() + valveId,
+                    self.macAddress() + valveId,
                     None,
                     "On",
                     "mdi:valve-open",
                     "mdi:valve-closed",
-                    f"Kohler Valve {valve} Outlet {outlet}",
-                    self.isOutletInstalled(valve, outlet),
-                    outletId
-                ))
+                    f"Kohler Valve {valve}",
+                    self.isValveInstalled(valve),
+                    f"valve{valve}_Currentstatus",
+                )
+            )
 
-        sensors.append(KohlerDataBinarySensor(
-            self.macAddress() + "shower",
-            self.macAddress() + "shower",
-            None,
-            True,
-            "mdi:shower",
-            "mdi:shower",
-            f"Kohler Shower Status",
-            True,
-            None,
-            "shower_on"
-        ))
+            for outlet in range(1, 7):
+                outletId = f"{valveId}outlet{outlet}"
+                sensors.append(
+                    KohlerDataBinarySensor(
+                        self.macAddress() + outletId,
+                        self.macAddress() + outletId,
+                        None,
+                        "On",
+                        "mdi:valve-open",
+                        "mdi:valve-closed",
+                        f"Kohler Valve {valve} Outlet {outlet}",
+                        self.isOutletInstalled(valve, outlet),
+                        outletId,
+                    )
+                )
 
-        sensors.append(KohlerDataBinarySensor(
-            self.macAddress() + "steam",
-            self.macAddress() + "steam",
-            "moisture",
-            True,
-            "mdi:radiator",
-            "mdi:radiator-disabled",
-            f"Kohler Steam Status",
-            self.isSteamInstalled(),
-            None,
-            "steam_running"
-        ))
+        sensors.append(
+            KohlerDataBinarySensor(
+                self.macAddress() + "shower",
+                self.macAddress() + "shower",
+                None,
+                True,
+                "mdi:shower",
+                "mdi:shower",
+                f"Kohler Shower Status",
+                True,
+                None,
+                "shower_on",
+            )
+        )
+
+        sensors.append(
+            KohlerDataBinarySensor(
+                self.macAddress() + "steam",
+                self.macAddress() + "steam",
+                "moisture",
+                True,
+                "mdi:radiator",
+                "mdi:radiator-disabled",
+                f"Kohler Steam Status",
+                self.isSteamInstalled(),
+                None,
+                "steam_running",
+            )
+        )
 
         for sensor in sensors:
             self.updateBinarySensor(sensor)
@@ -336,9 +364,7 @@ class KohlerData:
         if temp is None:
             temp = self.getTargetTemperature()
 
-        self._api.quickShower(
-            1, valve1Outlets, 0, temp, valve2Outlets, 0, temp
-        )
+        self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
 
     def turnOffShower(self):
         self._api.stopShower()
