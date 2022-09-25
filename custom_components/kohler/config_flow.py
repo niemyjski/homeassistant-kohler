@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__package__)
 
 
 class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a Kohler Integra config flow."""
+    """Handle a Kohler config flow."""
 
     VERSION = 1
 
