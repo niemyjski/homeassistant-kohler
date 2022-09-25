@@ -49,15 +49,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_setup(hass, config):
     # Config flow is done separately
     if DOMAIN not in config:
-        return True
-
-    hass.async_create_task(
-        hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": SOURCE_IMPORT},
-            data=config[DOMAIN],
+        return bool(hass.config_entries.async_entries(DOMAIN))
+    if not hass.config_entries.async_entries(DOMAIN):
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_IMPORT},
+                data=config[DOMAIN],
+            )
         )
-    )
 
     return True
 
