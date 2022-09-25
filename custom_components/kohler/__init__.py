@@ -19,22 +19,14 @@ from kohler import Kohler
 import logging
 _LOGGER = logging.getLogger(__name__)
 
-CONF_ACCEPT_LIABILITY_TERMS = "accept_liability_terms"
+from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
 
-DOMAIN = "kohler"
-DATA_KOHLER = "kohler"
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 
 NOTIFICATION_TITLE = "Kohler Setup"
 NOTIFICATION_ID = "kohler_notification"
 
-# Validation of the user's configuration
-CONFIG_SCHEMA = vol.Schema({
-    DOMAIN: vol.Schema({
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_ACCEPT_LIABILITY_TERMS): cv.boolean
-    })
-}, extra=vol.ALLOW_EXTRA)
+
 
 
 def setup(hass, config):

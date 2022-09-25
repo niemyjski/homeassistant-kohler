@@ -1,0 +1,12 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "accept_liability_terms": "Accept Liability Terms"
+                }
+            }        
+        }
+    }
+}
