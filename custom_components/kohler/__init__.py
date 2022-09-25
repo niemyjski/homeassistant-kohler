@@ -42,14 +42,14 @@ CONFIG_SCHEMA = vol.Schema(
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kohler DTV from a config entry."""
 
+    # This isn't really good, but it's a quick way to make this work since it requires synchronous calls
     return await hass.async_add_executor_job(initialize_integration, hass, entry.data)
-    # (initialize_integration(hass, entry.data)
-
 
 async def async_setup(hass, config):
     # Config flow is done separately
     if DOMAIN not in config:
         return bool(hass.config_entries.async_entries(DOMAIN))
+    # Create the entry from the config
     if not hass.config_entries.async_entries(DOMAIN):
         hass.async_create_task(
             hass.config_entries.flow.async_init(
@@ -64,6 +64,7 @@ async def async_setup(hass, config):
 
 def initialize_integration(hass, conf):
 
+    # In config flow, this should never happen
     if not conf.get(CONF_ACCEPT_LIABILITY_TERMS):
         _LOGGER.error(
             "Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability."
