@@ -1,9 +1,5 @@
 """Kohler LightEntity Integration"""
-from homeassistant.components.light import (
-    ATTR_BRIGHTNESS,
-    LightEntity,
-    ColorMode
-)
+from homeassistant.components.light import ATTR_BRIGHTNESS, LightEntity, ColorMode
 
 from . import DATA_KOHLER, KohlerData, KohlerDataLight
 
@@ -53,7 +49,7 @@ class KohlerLight(LightEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return BRIGHTNESS
+        return ColorMode.BRIGHTNESS
 
     @property
     def brightness(self):

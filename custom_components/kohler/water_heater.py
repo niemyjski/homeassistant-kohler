@@ -2,19 +2,16 @@ from homeassistant.components.water_heater import (
     STATE_OFF,
     STATE_ON,
     WaterHeaterEntity,
-    WaterHeaterEntityFeature
+    WaterHeaterEntityFeature,
 )
 
-from homeassistant.const import (
-    ATTR_TEMPERATURE,
-    TEMP_CELSIUS,
-    PRECISION_WHOLE
-)
+from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS, PRECISION_WHOLE
 
 from . import DATA_KOHLER, KohlerData
 
 SUPPORT_FLAGS_HEATER = (
-    WaterHeaterEntityFeature.TARGET_TEMPERATURE | WaterHeaterEntityFeature.OPERATION_MODE
+    WaterHeaterEntityFeature.TARGET_TEMPERATURE
+    | WaterHeaterEntityFeature.OPERATION_MODE
 )
 
 SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
@@ -37,7 +34,7 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = None
         self._target_temperature = None
         self._unit_of_measurement = data.unitOfMeasurement()
-        self._id = self._data.macAddress() + "waterheater"
+        self._id = self._data.macAddress() + "_waterheater"
 
     def update(self):
         """Let HA know there has been an update from the Kohler API."""
@@ -45,7 +42,6 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = self._data.getCurrentTemperature()
         self._target_temperature = self._data.getTargetTemperature()
         self._unit_of_measurement = self._data.unitOfMeasurement()
-        self._id = self._data.macAddress() + "waterheater"
 
     @property
     def unique_id(self):
