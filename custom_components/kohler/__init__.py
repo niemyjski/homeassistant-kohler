@@ -1,5 +1,6 @@
 from datetime import timedelta
 from typing import Optional, Union
+from homeassistant.helpers import entity_registry
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
@@ -233,6 +234,9 @@ class KohlerData:
         sensors: list[KohlerDataBinarySensor] = []
         for valve in range(1, 3):
             valveId = f"valve{valve}"
+            self._updateUniqueId(
+                self._hass, "binary_sensor", valveId, self.macAddress() + valveId
+            )
             sensors.append(
                 KohlerDataBinarySensor(
                     self.macAddress() + valveId,
@@ -249,6 +253,9 @@ class KohlerData:
 
             for outlet in range(1, 7):
                 outletId = f"{valveId}outlet{outlet}"
+                self._updateUniqueId(
+                    self._hass, "binary_sensor", outletId, self.macAddress() + outletId
+                )
                 sensors.append(
                     KohlerDataBinarySensor(
                         self.macAddress() + outletId,
@@ -263,6 +270,9 @@ class KohlerData:
                     )
                 )
 
+        self._updateUniqueId(
+            self._hass, "binary_sensor", "shower", self.macAddress() + "shower"
+        )
         sensors.append(
             KohlerDataBinarySensor(
                 self.macAddress() + "shower",
@@ -278,6 +288,9 @@ class KohlerData:
             )
         )
 
+        self._updateUniqueId(
+            self._hass, "binary_sensor", "steam", self.macAddress() + "steam"
+        )
         sensors.append(
             KohlerDataBinarySensor(
                 self.macAddress() + "steam",
@@ -297,6 +310,12 @@ class KohlerData:
             self.updateBinarySensor(sensor)
 
         return sensors
+
+    def _updateUniqueId(self, hass, platform, old_uid, new_uid):
+        er = entity_registry.async_get(hass)
+        entity_id = er.async_get_entity_id(platform, DOMAIN, old_uid)
+        if entity_id is not None:
+            er.async_update_entity(entity_id, new_unique_id=new_uid)
 
     def updateBinarySensor(self, sensor: KohlerDataBinarySensor):
         state = None
