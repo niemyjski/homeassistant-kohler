@@ -61,7 +61,7 @@ class KohlerLight(LightEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return BRIGHTNESS
+        return ColorMode.BRIGHTNESS
 
     @property
     def brightness(self):

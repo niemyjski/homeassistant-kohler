@@ -166,10 +166,9 @@ class KohlerData:
         self._api = api
         self._lights = self._getLights()
         self._binarySensors = self._getBinarySensors()
-        self._values = {}
-        self._sysInfo = {}
         self._values = self._api.values()
         self._conf = conf
+        self._sysInfo = {}
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def _updateValues(self):
@@ -235,12 +234,12 @@ class KohlerData:
         for valve in range(1, 3):
             valveId = f"valve{valve}"
             self._updateUniqueId(
-                self._hass, "binary_sensor", valveId, self.macAddress() + valveId
+                self._hass, "binary_sensor", valveId, self.macAddress() + "_" + valveId
             )
             sensors.append(
                 KohlerDataBinarySensor(
-                    self.macAddress() + valveId,
-                    self.macAddress() + valveId,
+                    self.macAddress() + "_" + valveId,
+                    self.macAddress() + "_" + valveId,
                     None,
                     "On",
                     "mdi:valve-open",
@@ -254,12 +253,15 @@ class KohlerData:
             for outlet in range(1, 7):
                 outletId = f"{valveId}outlet{outlet}"
                 self._updateUniqueId(
-                    self._hass, "binary_sensor", outletId, self.macAddress() + outletId
+                    self._hass,
+                    "binary_sensor",
+                    outletId,
+                    self.macAddress() + "_" + outletId,
                 )
                 sensors.append(
                     KohlerDataBinarySensor(
-                        self.macAddress() + outletId,
-                        self.macAddress() + outletId,
+                        self.macAddress() + "_" + outletId,
+                        self.macAddress() + "_" + outletId,
                         None,
                         "On",
                         "mdi:valve-open",
@@ -271,12 +273,12 @@ class KohlerData:
                 )
 
         self._updateUniqueId(
-            self._hass, "binary_sensor", "shower", self.macAddress() + "shower"
+            self._hass, "binary_sensor", "shower", self.macAddress() + "_shower"
         )
         sensors.append(
             KohlerDataBinarySensor(
-                self.macAddress() + "shower",
-                self.macAddress() + "shower",
+                self.macAddress() + "_shower",
+                self.macAddress() + "_shower",
                 None,
                 True,
                 "mdi:shower",
@@ -289,12 +291,12 @@ class KohlerData:
         )
 
         self._updateUniqueId(
-            self._hass, "binary_sensor", "steam", self.macAddress() + "steam"
+            self._hass, "binary_sensor", "steam", self.macAddress() + "_steam"
         )
         sensors.append(
             KohlerDataBinarySensor(
-                self.macAddress() + "steam",
-                self.macAddress() + "steam",
+                self.macAddress() + "_steam",
+                self.macAddress() + "_steam",
                 "moisture",
                 True,
                 "mdi:radiator",

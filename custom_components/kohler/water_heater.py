@@ -13,6 +13,7 @@ from homeassistant.const import (
     CONF_HOST,
 )
 
+
 from . import DATA_KOHLER, KohlerData
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 
@@ -41,7 +42,8 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = None
         self._target_temperature = None
         self._unit_of_measurement = data.unitOfMeasurement()
-        self._id = self._data.macAddress() + "waterheater"
+
+        self._id = self._data.macAddress() + "_waterheater"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._data.macAddress())},
             manufacturer=MANUFACTURER,
@@ -58,7 +60,6 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = self._data.getCurrentTemperature()
         self._target_temperature = self._data.getTargetTemperature()
         self._unit_of_measurement = self._data.unitOfMeasurement()
-        self._id = self._data.macAddress() + "waterheater"
 
     @property
     def unique_id(self):
