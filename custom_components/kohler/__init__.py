@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT, Platform
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
+from homeassistant.exceptions import ConfigEntryNotReady
 import voluptuous as vol
 
 import requests
@@ -51,6 +52,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if result:
         hass.config_entries.async_setup_platforms(
             entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+        )
+    else:
+        raise ConfigEntryNotReady(
+            f"Timeout while connecting to {entry.data.get(CONF_HOST)}"
         )
     return result
 
