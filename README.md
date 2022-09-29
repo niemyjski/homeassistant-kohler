@@ -12,14 +12,8 @@ I initially [filed an issue](https://github.com/home-assistant/architecture/issu
 ## Setup instructions
 
 1. Install via [HACS](https://github.com/hacs/integration) by adding this repository to the HACS configuration settings.
-2. Add the following to your `configuration.yml`:
-3. Accept the waiver of liability by reading below.
-
-```yaml
-kohler:
-  host: YOUR_SHOWER_IP
-  accept_liability_terms: False
-```
+2. Go to Settings -> Add Integration -> Search for Kohler
+3. Enter your host name and read the below waiver of liability
 
 ## Features
 
@@ -33,7 +27,7 @@ This agreement releases Blake Niemyjski from all liability relating to injuries 
 
 I also acknowledge the risks involved in controlling water valves and devices. These include but are not limited to water damage, damage to home, damage to property, damage to devices, or death. I swear that I am participating voluntarily, and that all risks have been made clear to me. Additionally, I do not have any conditions that will increase my likelihood of experiencing injuries while engaging in this activity.
 
-By accepting the terms (by setting the `accept_liability_terms` setting to `True`) I forfeit all right to bring a suit against Blake Niemyjski or any contributors for any reason. In return, I will receive the possibility to interact with your Kohler devices. I will also make every effort to obey all safety precautions as listed in the owner manuals, listed here and anything else not covered (I am accepting all responsibilities). I will ask for clarification when needed.
+By accepting the terms (by setting the `Accept Liability Terms` checkbox) I forfeit all right to bring a suit against Blake Niemyjski or any contributors for any reason. In return, I will receive the possibility to interact with your Kohler devices. I will also make every effort to obey all safety precautions as listed in the owner manuals, listed here and anything else not covered (I am accepting all responsibilities). I will ask for clarification when needed.
 
 ## Coming Soon
 

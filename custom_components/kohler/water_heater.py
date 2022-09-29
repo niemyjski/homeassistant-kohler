@@ -4,10 +4,18 @@ from homeassistant.components.water_heater import (
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
 )
+from homeassistant.helpers.entity import DeviceInfo
 
-from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS, PRECISION_WHOLE
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    TEMP_CELSIUS,
+    PRECISION_WHOLE,
+    CONF_HOST,
+)
+
 
 from . import DATA_KOHLER, KohlerData
+from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 
 SUPPORT_FLAGS_HEATER = (
     WaterHeaterEntityFeature.TARGET_TEMPERATURE
@@ -17,7 +25,7 @@ SUPPORT_FLAGS_HEATER = (
 SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler platform."""
     data: KohlerData = hass.data[DATA_KOHLER]
     add_entities([KohlerWaterHeater(data)])
@@ -34,7 +42,17 @@ class KohlerWaterHeater(WaterHeaterEntity):
         self._current_temperature = None
         self._target_temperature = None
         self._unit_of_measurement = data.unitOfMeasurement()
+
         self._id = self._data.macAddress() + "_waterheater"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self._data.macAddress())},
+            manufacturer=MANUFACTURER,
+            configuration_url="http://" + data.getConf(CONF_HOST),
+            default_name=DEFAULT_NAME,
+            model=MODEL,
+            hw_version=self._data.firmwareVersion(),
+            sw_version=self._data.firmwareVersion(),
+        )
 
     def update(self):
         """Let HA know there has been an update from the Kohler API."""

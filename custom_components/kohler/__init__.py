@@ -3,10 +3,13 @@ from typing import Optional, Union
 from homeassistant.helpers import entity_registry
 
 import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
-from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT
+from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
+from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT, Platform
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
+from homeassistant.exceptions import ConfigEntryNotReady
+import voluptuous as vol
 
 import requests
 from requests.exceptions import HTTPError, ConnectTimeout
@@ -15,12 +18,11 @@ from kohler import Kohler
 
 import logging
 
+from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
+
 _LOGGER = logging.getLogger(__name__)
 
-CONF_ACCEPT_LIABILITY_TERMS = "accept_liability_terms"
 
-DOMAIN = "kohler"
-DATA_KOHLER = "kohler"
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 
 NOTIFICATION_TITLE = "Kohler Setup"
@@ -28,6 +30,7 @@ NOTIFICATION_ID = "kohler_notification"
 
 # Validation of the user's configuration
 CONFIG_SCHEMA = vol.Schema(
+    cv.deprecated(DOMAIN),
     {
         DOMAIN: vol.Schema(
             {
@@ -40,9 +43,52 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
-def setup(hass, config):
-    conf = config[DOMAIN]
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Kohler DTV from a config entry."""
 
+    # This isn't really good, but it's a quick way to make this work since it requires synchronous calls
+
+    result = await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+    if result:
+        hass.config_entries.async_setup_platforms(
+            entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+        )
+    else:
+        raise ConfigEntryNotReady(
+            f"Timeout while connecting to {entry.data.get(CONF_HOST)}"
+        )
+    return result
+
+
+async def async_setup(hass, config):
+    # Config flow is done separately
+    if DOMAIN not in config:
+        return bool(hass.config_entries.async_entries(DOMAIN))
+    # Create the entry from the config
+    if not hass.config_entries.async_entries(DOMAIN):
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_IMPORT},
+                data=config[DOMAIN],
+            )
+        )
+
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    if unload_ok := await hass.config_entries.async_unload_platforms(
+        entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+    ):
+        hass.data.pop(DOMAIN)
+    return unload_ok
+
+
+def initialize_integration(hass, conf):
+
+    # In config flow, this should never happen
     if not conf.get(CONF_ACCEPT_LIABILITY_TERMS):
         _LOGGER.error(
             "Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability."
@@ -57,7 +103,7 @@ def setup(hass, config):
     host: str = conf.get(CONF_HOST)
     try:
         api = Kohler(kohlerHost=host)
-        data = KohlerData(hass, api)
+        data = KohlerData(hass, api, conf)
 
         hass.data[DATA_KOHLER] = data
     except (ConnectTimeout, HTTPError) as ex:
@@ -70,9 +116,6 @@ def setup(hass, config):
             notification_id=NOTIFICATION_ID,
         )
         return False
-
-    for component in ["binary_sensor", "water_heater"]:
-        discovery.load_platform(hass, component, DOMAIN, {}, config)
 
     return True
 
@@ -122,13 +165,14 @@ class KohlerDataBinarySensor(KohlerDataEntity):
 class KohlerData:
     """Kohler data object."""
 
-    def __init__(self, hass, api: Kohler):
+    def __init__(self, hass, api: Kohler, conf):
         """Init Kohler data object."""
         self._hass = hass
         self._api = api
         self._lights = self._getLights()
         self._binarySensors = self._getBinarySensors()
         self._values = self._api.values()
+        self._conf = conf
         self._sysInfo = {}
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
@@ -138,6 +182,9 @@ class KohlerData:
             _LOGGER.debug("Updated values")
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update values: %s", str(ex))
+
+    def getConf(self, key: str):
+        return self._conf[key]
 
     def getValue(self, key: str, defaultValue=None):
         self._updateValues()
@@ -296,6 +343,9 @@ class KohlerData:
 
     def macAddress(self):
         return self.getValue("MAC")
+
+    def firmwareVersion(self):
+        return self.getValue("controller_version_string")
 
     def getInstalledValveOutlets(self, valve: int = 1):
         outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))

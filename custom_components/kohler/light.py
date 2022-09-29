@@ -1,5 +1,8 @@
 """Kohler LightEntity Integration"""
 from homeassistant.components.light import ATTR_BRIGHTNESS, LightEntity, ColorMode
+from homeassistant.helpers.entity import DeviceInfo
+from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from homeassistant.const import CONF_HOST
 
 from . import DATA_KOHLER, KohlerData, KohlerDataLight
 
@@ -24,6 +27,15 @@ class KohlerLight(LightEntity):
         """Initialize a Kohler Light."""
         self._data = data
         self._light = light
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self._data.macAddress())},
+            manufacturer=MANUFACTURER,
+            configuration_url="http://" + data.getConf(CONF_HOST),
+            default_name=DEFAULT_NAME,
+            model=MODEL,
+            hw_version=self._data.firmwareVersion(),
+            sw_version=self._data.firmwareVersion(),
+        )
 
     @property
     def name(self):
