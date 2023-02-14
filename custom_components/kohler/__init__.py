@@ -22,6 +22,8 @@ from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
 
 _LOGGER = logging.getLogger(__name__)
 
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+
 
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 
@@ -48,16 +50,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # This isn't really good, but it's a quick way to make this work since it requires synchronous calls
 
-    result = await hass.async_add_executor_job(initialize_integration, hass, entry.data)
-    if result:
-        hass.config_entries.async_setup_platforms(
-            entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
-        )
-    else:
-        raise ConfigEntryNotReady(
-            f"Timeout while connecting to {entry.data.get(CONF_HOST)}"
-        )
-    return result
+    try:
+        result = await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+        if result:
+            await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+            return result
+    except Exception as ex:
+        _LOGGER.error("Error while setting up Kohler integration %s", ex)
+
+    raise ConfigEntryNotReady(
+        f"Timeout while connecting to {entry.data.get(CONF_HOST)}"
+    )
+    return False
 
 
 async def async_setup(hass, config):
@@ -80,7 +84,7 @@ async def async_setup(hass, config):
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(
-        entry, [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+        entry, PLATFORMS
     ):
         hass.data.pop(DOMAIN)
     return unload_ok

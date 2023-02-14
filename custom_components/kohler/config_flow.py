@@ -65,5 +65,6 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             api = Kohler(kohlerHost=host)
             api.values()
             return True
-        except Exception:
+        except Exception as ex:
+            _LOGGER.error("Error connecting to Kohler DTV+ %s", ex)
             return False
