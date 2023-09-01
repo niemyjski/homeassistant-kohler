@@ -3,15 +3,9 @@
     "domain": "kohler",
     "name": "Kohler",
     "documentation": "https://github.com/niemyjski/homeassistant-kohler",
-    "requirements": [
-        "kohler>=0.0.5"
-    ],
-    "dependencies": [
-        "http"
-    ],
-    "codeowners": [
-        "niemyjski"
-    ],
+    "requirements": ["kohler>=0.0.5"],
+    "dependencies": ["http"],
+    "codeowners": ["niemyjski"],
     "iot_class": "local_polling",
     "config_flow": true
 }
