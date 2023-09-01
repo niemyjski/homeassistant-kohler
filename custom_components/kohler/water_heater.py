@@ -48,7 +48,7 @@ class KohlerWaterHeater(WaterHeaterEntity):
             identifiers={(DOMAIN, self._data.macAddress())},
             manufacturer=MANUFACTURER,
             configuration_url="http://" + data.getConf(CONF_HOST),
-            default_name=DEFAULT_NAME,
+            name=DEFAULT_NAME,
             model=MODEL,
             hw_version=self._data.firmwareVersion(),
             sw_version=self._data.firmwareVersion(),
