@@ -5,7 +5,7 @@ from homeassistant.helpers import entity_registry
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_HOST, TEMP_CELSIUS, TEMP_FAHRENHEIT, Platform
+from homeassistant.const import CONF_HOST, Platform, UnitOfTemperature
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -341,9 +341,9 @@ class KohlerData:
     def unitOfMeasurement(self):
         unit = self.getSystemInfo("degree_symbol")
         if unit == "&degF":
-            return TEMP_FAHRENHEIT
+            return UnitOfTemperature.FAHRENHEIT
 
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     def macAddress(self):
         return self.getValue("MAC")
