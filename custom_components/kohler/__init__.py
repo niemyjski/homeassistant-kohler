@@ -5,27 +5,36 @@ from homeassistant.helpers import entity_registry
 import homeassistant.helpers.config_validation as cv
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_HOST, Platform, UnitOfTemperature
+from homeassistant.const import CONF_HOST, Platform
 from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
 from homeassistant.exceptions import ConfigEntryNotReady
 import voluptuous as vol
+from homeassistant.const import (
+    UnitOfTemperature
+)
+from homeassistant.helpers.update_coordinator import (
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
 
 import requests
 from requests.exceptions import HTTPError, ConnectTimeout
 
-from kohler import Kohler
+from .kohler import Kohler
 
 import logging
+import async_timeout
 
 from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.WATER_HEATER]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.SWITCH, Platform.WATER_HEATER]
 
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
+MIN_TIME_BETWEEN_VALUE_UPDATES = timedelta(seconds=20)
+MIN_TIME_BETWEEN_SYSTEM_UPDATES = timedelta(seconds=2)
 
 NOTIFICATION_TITLE = "Kohler Setup"
 NOTIFICATION_ID = "kohler_notification"
@@ -47,12 +56,12 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kohler DTV from a config entry."""
-
-    # This isn't really good, but it's a quick way to make this work since it requires synchronous calls
+    _LOGGER.debug(f"Setting up Kohler integration.")
 
     try:
         result = await hass.async_add_executor_job(initialize_integration, hass, entry.data)
         if result:
+            await hass.data[DATA_KOHLER].async_config_entry_first_refresh()
             await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
             return result
     except Exception as ex:
@@ -148,7 +157,6 @@ class KohlerDataBinarySensor(KohlerDataEntity):
         id: str,
         deviceId: str,
         deviceClass: Optional[str],
-        stateOn: Union[str, bool, int, float],
         iconOn: str,
         iconOff: str,
         name: str,
@@ -158,7 +166,6 @@ class KohlerDataBinarySensor(KohlerDataEntity):
     ):
         super().__init__(id, deviceId, name, installed)
         self.deviceClass = deviceClass
-        self.stateOn = stateOn
         self.state = False
         self.iconOn = iconOn
         self.iconOff = iconOff
@@ -166,24 +173,66 @@ class KohlerDataBinarySensor(KohlerDataEntity):
         self.valueKey = valueKey
 
 
-class KohlerData:
+class KohlerData(DataUpdateCoordinator):
     """Kohler data object."""
 
     def __init__(self, hass, api: Kohler, conf):
+        super().__init__(
+            hass,
+            _LOGGER,
+            # Name of the data. For logging purposes.
+            name="Kohler Data Coordinator",
+            # Polling interval. Will only be polled if there are subscribers.
+            update_interval=timedelta(seconds=20),
+            # Set always_update to `False` if the data returned from the
+            # api can be compared via `__eq__` to avoid duplicate updates
+            # being dispatched to listeners
+            always_update=True
+        )
+
         """Init Kohler data object."""
         self._hass = hass
         self._api = api
-        self._lights = self._getLights()
-        self._binarySensors = self._getBinarySensors()
-        self._values = self._api.values()
         self._conf = conf
         self._sysInfo = {}
+        self._target_temperature = None
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    async def _async_setup(self):
+        """Set up the coordinator
+
+        This is the place to set up your coordinator,
+        or to load data, that only needs to be loaded once.
+
+        This method will be called automatically during
+        coordinator.async_config_entry_first_refresh.
+        """
+        await self._hass.async_add_executor_job(self.update)
+
+        self._lights = self._getLights()
+        self._binarySensors = self._getBinarySensors()
+
+    async def _async_update_data(self):
+        """Fetch data from API endpoint.
+
+        This is the place to pre-process the data to lookup tables
+        so entities can quickly look up their data.
+        """
+        try:
+            # Note: asyncio.TimeoutError and aiohttp.ClientError are already
+            # handled by the data update coordinator.
+            async with async_timeout.timeout(10):
+                return await self._hass.async_add_executor_job(self.update)
+        except (ConnectTimeout, HTTPError) as err:
+            raise UpdateFailed(f"Error communicating with API: {err}")
+
+    def update(self):
+        self._updateValues()
+        self._updateSystemInfo()
+
     def _updateValues(self):
         try:
             self._values = self._api.values()
-            _LOGGER.debug("Updated values")
+            _LOGGER.debug(f"Updated values {self._values}")
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update values: %s", str(ex))
 
@@ -191,19 +240,16 @@ class KohlerData:
         return self._conf[key]
 
     def getValue(self, key: str, defaultValue=None):
-        self._updateValues()
         return defaultValue if key not in self._values else self._values[key]
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def _updateSystemInfo(self):
         try:
             self._sysInfo = self._api.systemInfo()
-            _LOGGER.debug("Updated system info")
+            _LOGGER.debug(f"Updated system info {self._sysInfo}")
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update  system info: %s", str(ex))
 
     def getSystemInfo(self, key, defaultValue=None):
-        self._updateSystemInfo()
         return defaultValue if key not in self._sysInfo else self._sysInfo[key]
 
     @property
@@ -250,7 +296,6 @@ class KohlerData:
                     self.macAddress() + "_" + valveId,
                     self.macAddress() + "_" + valveId,
                     None,
-                    "On",
                     "mdi:valve-open",
                     "mdi:valve-closed",
                     f"Kohler Valve {valve}",
@@ -272,7 +317,6 @@ class KohlerData:
                         self.macAddress() + "_" + outletId,
                         self.macAddress() + "_" + outletId,
                         None,
-                        "On",
                         "mdi:valve-open",
                         "mdi:valve-closed",
                         f"Kohler Valve {valve} Outlet {outlet}",
@@ -289,7 +333,6 @@ class KohlerData:
                 self.macAddress() + "_shower",
                 self.macAddress() + "_shower",
                 None,
-                True,
                 "mdi:shower",
                 "mdi:shower",
                 f"Kohler Shower Status",
@@ -307,7 +350,6 @@ class KohlerData:
                 self.macAddress() + "_steam",
                 self.macAddress() + "_steam",
                 "moisture",
-                True,
                 "mdi:radiator",
                 "mdi:radiator-disabled",
                 f"Kohler Steam Status",
@@ -333,10 +375,13 @@ class KohlerData:
 
         if sensor.systemKey:
             state = self.getSystemInfo(sensor.systemKey)
+            _LOGGER.debug(f"Updating system info sensor {sensor.systemKey} to {state}.")
         elif sensor.valueKey:
             state = self.getValue(sensor.valueKey)
+            _LOGGER.debug(f"Updating value key sensor {sensor.valueKey} to {state}.")
 
-        sensor.state = state == sensor.stateOn
+        sensor.state = (state == True or state == "True" or state == "On") 
+        _LOGGER.debug(f"Sensor {sensor.id} state is {sensor.state}.")
 
     def unitOfMeasurement(self):
         unit = self.getSystemInfo("degree_symbol")
@@ -364,6 +409,42 @@ class KohlerData:
 
         return 0 if not outlets else int(outlets)
 
+    def getOpenValveOutlets(self, valve: int = 1):
+        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outletCount < 1:
+            return ""
+
+        outlets = ""
+        for outlet in range(1, outletCount):
+            if self.isOutletOn(valve, outlet):
+                outlets += str(outlet)
+
+        return outlets
+
+    def genValveOutletOpen(self, valve: int, outletOn: int):
+        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outletCount < 1:
+            return ""
+
+        outlets = ""
+        for outlet in range(1, outletCount):
+            if self.isOutletOn(valve, outlet) or (outlet == outletOn):
+                outlets += str(outlet)
+
+        return outlets
+
+    def genValveOutletClosed(self, valve: int, outletOff: int):
+        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outletCount < 1:
+            return ""
+
+        outlets = ""
+        for outlet in range(1, outletCount):
+            if self.isOutletOn(valve, outlet) and (outlet != outletOff):
+                outlets += str(outlet)
+
+        return outlets
+
     def isSteamInstalled(self) -> bool:
         return self.getValue("steam_installed", False)
 
@@ -375,6 +456,9 @@ class KohlerData:
 
     def isOutletOn(self, valve: int, outlet: int) -> bool:
         return self.getSystemInfo(f"valve{valve}outlet{outlet}", False)
+
+    def isValveOn(self, valve: int) -> bool:
+        return self.getSystemInfo(f"valve{valve}_Currentstatus", "Off") == "On"
 
     def getCurrentTemperature(self) -> Optional[float]:
         temps: list[float] = []
@@ -397,7 +481,11 @@ class KohlerData:
             if not self.isValveInstalled(valve):
                 continue
 
-            temp = self.getSystemInfo(f"valve{valve}Setpoint")
+            if self.isValveOn(valve) or self._target_temperature is None:
+                temp = self.getSystemInfo(f"valve{valve}Setpoint")
+            else:
+                temp = self._target_temperature
+
             if temp is not None:
                 temps.append(float(temp))
 
@@ -407,23 +495,54 @@ class KohlerData:
             return max(temps)
 
     def setTargetTemperature(self, temperature):
-        for valve in range(1, 2):
-            if not self.isValveInstalled(valve):
-                continue
+        _LOGGER.debug(f"setTargetTemperature {temperature}")
+        self._target_temperature = float(temperature)
 
-            self._api.saveVariable(38, temperature, valve=valve)
+        if (self.isShowerOn()):
+            valve1Outlets = self.getOpenValveOutlets(1)
+            valve2Outlets = self.getOpenValveOutlets(2)
+
+            self._api.quickShower(1, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature)
+            self._api.quickShower(2, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature)
+            self._updateSystemInfo()
 
     def isShowerOn(self) -> bool:
-        return self.getValue("shower_on", False)
+        return self.isValveOn(1) or self.isValveOn(2)
 
     def turnOnShower(self, temp=None):
-        # TODO: Do a better job at selecting valves and support steam.
+        _LOGGER.debug(f"turnOnShower {temp}")
         valve1Outlets = self.getInstalledValveOutlets(1)
         valve2Outlets = self.getInstalledValveOutlets(2)
         if temp is None:
             temp = self.getTargetTemperature()
 
         self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
+        self._updateSystemInfo()
 
     def turnOffShower(self):
+        _LOGGER.debug(f"turnOffShower")
         self._api.stopShower()
+        self._updateSystemInfo()
+
+    def openOutlet(self, valveId, outletId):
+        _LOGGER.debug(f"openOutlet valveId={valveId} outletId={outletId}")
+        valve1Outlets = self.genValveOutletOpen(1, outletId) if valveId == 1 else self.getOpenValveOutlets(1)
+        valve2Outlets = self.genValveOutletOpen(2, outletId) if valveId == 2 else self.getOpenValveOutlets(2)
+
+        temp = self.getTargetTemperature()
+
+        self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
+        self._api.quickShower(2, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
+        self._updateSystemInfo()
+
+    def closeOutlet(self, valveId, outletId):
+        _LOGGER.debug(f"closeOutlet valveId={valveId} outletId={outletId}")
+        valve1Outlets = self.genValveOutletClosed(1, outletId) if valveId == 1 else self.getOpenValveOutlets(1)
+        valve2Outlets = self.genValveOutletClosed(2, outletId) if valveId == 2 else self.getOpenValveOutlets(2)
+
+        temp = self.getTargetTemperature()
+
+        self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
+        self._api.quickShower(2, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
+        self._updateSystemInfo()
+
