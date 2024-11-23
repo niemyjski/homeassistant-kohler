@@ -1,7 +1,9 @@
 {
     "name": "Kohler",
     "domains": [
+        "climate",
         "light",
+        "switch",
         "water_heater"
     ],
     "render_readme": true
