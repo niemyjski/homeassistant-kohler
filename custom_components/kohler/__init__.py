@@ -21,7 +21,7 @@ from homeassistant.helpers.update_coordinator import (
 import requests
 from requests.exceptions import HTTPError, ConnectTimeout
 
-from .kohler import Kohler
+from kohler import Kohler
 
 import logging
 import async_timeout
@@ -380,7 +380,7 @@ class KohlerData(DataUpdateCoordinator):
             state = self.getValue(sensor.valueKey)
             _LOGGER.debug(f"Updating value key sensor {sensor.valueKey} to {state}.")
 
-        sensor.state = (state == True or state == "True" or state == "On") 
+        sensor.state = (state == True or state == "True" or state == "On")
         _LOGGER.debug(f"Sensor {sensor.id} state is {sensor.state}.")
 
     def unitOfMeasurement(self):
