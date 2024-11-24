@@ -1,4 +1,5 @@
 """Switches kohler outlet on/off """
+
 import logging
 import re
 
@@ -6,9 +7,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
@@ -16,7 +15,8 @@ from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
 
 _LOGGER = logging.getLogger(__name__)
 
-OUTLET_ID_PATTERN = re.compile('.*_valve([0-9])outlet([0-9])')
+OUTLET_ID_PATTERN = re.compile(".*_valve([0-9])outlet([0-9])")
+
 
 async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler SwitchEntity platform."""
@@ -30,11 +30,14 @@ async def async_setup_entry(hass, config, add_entities):
             sensor_id_match = OUTLET_ID_PATTERN.fullmatch(sensor.id)
             if sensor_id_match:
                 _LOGGER.debug(f"Adding a switch for {sensor.id}")
-                switches.append(KohlerSwitch(
-                    data, 
-                    sensor, 
-                    int(sensor_id_match.group(1)), 
-                    int(sensor_id_match.group(2))))
+                switches.append(
+                    KohlerSwitch(
+                        data,
+                        sensor,
+                        int(sensor_id_match.group(1)),
+                        int(sensor_id_match.group(2)),
+                    )
+                )
 
     add_entities(switches)
 
@@ -42,7 +45,9 @@ async def async_setup_entry(hass, config, add_entities):
 class KohlerSwitch(CoordinatorEntity, SwitchEntity):
     """Representation of a single outlet in a Kohler device."""
 
-    def __init__(self, data: KohlerData, sensor: KohlerDataBinarySensor, valve: int, outlet: int):
+    def __init__(
+        self, data: KohlerData, sensor: KohlerDataBinarySensor, valve: int, outlet: int
+    ):
         """Initialize a Kohler binary sensor."""
         super().__init__(data)
         self._data = data
@@ -94,11 +99,14 @@ class KohlerSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Open outlet."""
-        await self.hass.async_add_executor_job(self._data.openOutlet, self._valve, self._outlet)
+        await self.hass.async_add_executor_job(
+            self._data.openOutlet, self._valve, self._outlet
+        )
         self.coordinator.async_update_listeners()
 
     async def async_turn_off(self, **kwargs):
         """Close outlet."""
-        await self.hass.async_add_executor_job(self._data.closeOutlet, self._valve, self._outlet)
+        await self.hass.async_add_executor_job(
+            self._data.closeOutlet, self._valve, self._outlet
+        )
         self.coordinator.async_update_listeners()
-

@@ -5,16 +5,14 @@ from homeassistant.components.water_heater import (
     WaterHeaterEntityFeature,
 )
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import callback
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     PRECISION_WHOLE,
     CONF_HOST,
-    UnitOfTemperature
+    UnitOfTemperature,
 )
 
 from . import DATA_KOHLER, KohlerData
@@ -101,7 +99,9 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         """Set new target temperatures."""
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is not None:
-            await self.hass.async_add_executor_job(self._data.setTargetTemperature, temp)
+            await self.hass.async_add_executor_job(
+                self._data.setTargetTemperature, temp
+            )
 
         self.coordinator.async_update_listeners()
 
@@ -133,12 +133,15 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     async def set_operation_mode(self, operation_mode):
         """Set operation mode."""
         if operation_mode == STATE_ON:
-            await self.hass.async_add_executor_job(self._data.turnOnShower, self._data.getTargetTemperature())
+            await self.hass.async_add_executor_job(
+                self._data.turnOnShower, self._data.getTargetTemperature()
+            )
         else:
-            await self.hass.async_add_executor_job(self._data.turnOffShower, self._data.getTargetTemperature())
+            await self.hass.async_add_executor_job(
+                self._data.turnOffShower, self._data.getTargetTemperature()
+            )
 
         self.coordinator.async_update_listeners()
-
 
     @property
     def icon(self):

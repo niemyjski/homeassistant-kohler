@@ -10,9 +10,7 @@ from homeassistant.helpers import discovery
 from homeassistant.util import Throttle
 from homeassistant.exceptions import ConfigEntryNotReady
 import voluptuous as vol
-from homeassistant.const import (
-    UnitOfTemperature
-)
+from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -30,7 +28,12 @@ from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.SWITCH, Platform.WATER_HEATER]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.CLIMATE,
+    Platform.SWITCH,
+    Platform.WATER_HEATER,
+]
 
 
 MIN_TIME_BETWEEN_VALUE_UPDATES = timedelta(seconds=20)
@@ -59,7 +62,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug(f"Setting up Kohler integration.")
 
     try:
-        result = await hass.async_add_executor_job(initialize_integration, hass, entry.data)
+        result = await hass.async_add_executor_job(
+            initialize_integration, hass, entry.data
+        )
         if result:
             await hass.data[DATA_KOHLER].async_config_entry_first_refresh()
             await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -92,9 +97,7 @@ async def async_setup(hass, config):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(
-        entry, PLATFORMS
-    ):
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data.pop(DOMAIN)
     return unload_ok
 
@@ -187,7 +190,7 @@ class KohlerData(DataUpdateCoordinator):
             # Set always_update to `False` if the data returned from the
             # api can be compared via `__eq__` to avoid duplicate updates
             # being dispatched to listeners
-            always_update=True
+            always_update=True,
         )
 
         """Init Kohler data object."""
@@ -380,7 +383,7 @@ class KohlerData(DataUpdateCoordinator):
             state = self.getValue(sensor.valueKey)
             _LOGGER.debug(f"Updating value key sensor {sensor.valueKey} to {state}.")
 
-        sensor.state = (state == True or state == "True" or state == "On")
+        sensor.state = state == True or state == "True" or state == "On"
         _LOGGER.debug(f"Sensor {sensor.id} state is {sensor.state}.")
 
     def unitOfMeasurement(self):
@@ -498,12 +501,16 @@ class KohlerData(DataUpdateCoordinator):
         _LOGGER.debug(f"setTargetTemperature {temperature}")
         self._target_temperature = float(temperature)
 
-        if (self.isShowerOn()):
+        if self.isShowerOn():
             valve1Outlets = self.getOpenValveOutlets(1)
             valve2Outlets = self.getOpenValveOutlets(2)
 
-            self._api.quickShower(1, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature)
-            self._api.quickShower(2, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature)
+            self._api.quickShower(
+                1, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature
+            )
+            self._api.quickShower(
+                2, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature
+            )
             self._updateSystemInfo()
 
     def isShowerOn(self) -> bool:
@@ -526,8 +533,16 @@ class KohlerData(DataUpdateCoordinator):
 
     def openOutlet(self, valveId, outletId):
         _LOGGER.debug(f"openOutlet valveId={valveId} outletId={outletId}")
-        valve1Outlets = self.genValveOutletOpen(1, outletId) if valveId == 1 else self.getOpenValveOutlets(1)
-        valve2Outlets = self.genValveOutletOpen(2, outletId) if valveId == 2 else self.getOpenValveOutlets(2)
+        valve1Outlets = (
+            self.genValveOutletOpen(1, outletId)
+            if valveId == 1
+            else self.getOpenValveOutlets(1)
+        )
+        valve2Outlets = (
+            self.genValveOutletOpen(2, outletId)
+            if valveId == 2
+            else self.getOpenValveOutlets(2)
+        )
 
         temp = self.getTargetTemperature()
 
@@ -537,12 +552,19 @@ class KohlerData(DataUpdateCoordinator):
 
     def closeOutlet(self, valveId, outletId):
         _LOGGER.debug(f"closeOutlet valveId={valveId} outletId={outletId}")
-        valve1Outlets = self.genValveOutletClosed(1, outletId) if valveId == 1 else self.getOpenValveOutlets(1)
-        valve2Outlets = self.genValveOutletClosed(2, outletId) if valveId == 2 else self.getOpenValveOutlets(2)
+        valve1Outlets = (
+            self.genValveOutletClosed(1, outletId)
+            if valveId == 1
+            else self.getOpenValveOutlets(1)
+        )
+        valve2Outlets = (
+            self.genValveOutletClosed(2, outletId)
+            if valveId == 2
+            else self.getOpenValveOutlets(2)
+        )
 
         temp = self.getTargetTemperature()
 
         self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
         self._api.quickShower(2, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
         self._updateSystemInfo()
-

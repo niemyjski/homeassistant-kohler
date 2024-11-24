@@ -6,9 +6,7 @@ from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
 )
-from homeassistant.components.climate.const import (
-    HVACMode
-)
+from homeassistant.components.climate.const import HVACMode
 from homeassistant.core import callback
 from homeassistant.helpers.entity import DeviceInfo
 
@@ -16,11 +14,9 @@ from homeassistant.const import (
     ATTR_TEMPERATURE,
     PRECISION_WHOLE,
     CONF_HOST,
-    UnitOfTemperature
+    UnitOfTemperature,
 )
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DATA_KOHLER, KohlerData
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
@@ -34,6 +30,7 @@ SUPPORTED_FEATURES = (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler platform."""
@@ -67,7 +64,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._hvac_mode = HVACMode.HEAT if self._data.isShowerOn() else HVACMode.OFF  
+        self._hvac_mode = HVACMode.HEAT if self._data.isShowerOn() else HVACMode.OFF
         _LOGGER.info(f"_handle_coordinator_update. _hvac_mode = {self._hvac_mode}")
 
         super()._handle_coordinator_update()
@@ -98,7 +95,9 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        _LOGGER.info(f"current_temperature = {self._data.getCurrentTemperature()}, target_temperature = {self._data.getTargetTemperature()}")
+        _LOGGER.info(
+            f"current_temperature = {self._data.getCurrentTemperature()}, target_temperature = {self._data.getTargetTemperature()}"
+        )
         return self._data.getCurrentTemperature() or self._data.getTargetTemperature()
 
     @property
@@ -111,7 +110,9 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
         """Set new target temperatures."""
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is not None:
-            await self.hass.async_add_executor_job(self._data.setTargetTemperature, temp)
+            await self.hass.async_add_executor_job(
+                self._data.setTargetTemperature, temp
+            )
 
         await self._data.async_update_listeners()
 
@@ -123,7 +124,9 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def max_temp(self):
         """Return the maximum temperature."""
-        return 45 if self._data.unitOfMeasurement() == UnitOfTemperature.CELSIUS else 113
+        return (
+            45 if self._data.unitOfMeasurement() == UnitOfTemperature.CELSIUS else 113
+        )
 
     @property
     def precision(self):
@@ -145,15 +148,19 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
         """Set operation mode."""
         self._hvac_mode = mode
         if mode == HVACMode.OFF:
-            await self.hass.async_add_executor_job(self._data.turnOffShower)                
+            await self.hass.async_add_executor_job(self._data.turnOffShower)
         else:
-            await self.hass.async_add_executor_job(self._data.turnOnShower, self._data.getTargetTemperature())
+            await self.hass.async_add_executor_job(
+                self._data.turnOnShower, self._data.getTargetTemperature()
+            )
         self.coordinator.async_update_listeners()
 
     async def async_turn_on(self):
-        await self.hass.async_add_executor_job(self._data.turnOnShower, self._data.getTargetTemperature())
+        await self.hass.async_add_executor_job(
+            self._data.turnOnShower, self._data.getTargetTemperature()
+        )
         self.coordinator.async_update_listeners()
-        
+
     async def async_turn_off(self):
         await self.hass.async_add_executor_job(self._data.turnOffShower)
         self.coordinator.async_update_listeners()

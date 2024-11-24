@@ -1,10 +1,9 @@
 """Kohler Binary Sensor Integration"""
+
 from homeassistant.core import callback
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 from homeassistant.const import CONF_HOST
 
