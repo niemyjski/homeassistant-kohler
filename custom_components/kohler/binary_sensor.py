@@ -1,8 +1,13 @@
 """Kohler Binary Sensor Integration"""
+from homeassistant.core import callback
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity
+)
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 from homeassistant.const import CONF_HOST
+
 
 from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
 
@@ -19,11 +24,12 @@ async def async_setup_entry(hass, config, add_entities):
     add_entities(sensors)
 
 
-class KohlerBinarySensor(BinarySensorEntity):
+class KohlerBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Representation of a single binary sensor in a Kohler device."""
 
     def __init__(self, data: KohlerData, sensor: KohlerDataBinarySensor):
         """Initialize a Kohler binary sensor."""
+        super().__init__(data)
         self._data = data
         self._sensor = sensor
         self._attr_device_info = DeviceInfo(
@@ -35,6 +41,12 @@ class KohlerBinarySensor(BinarySensorEntity):
             hw_version=self._data.firmwareVersion(),
             sw_version=self._data.firmwareVersion(),
         )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._data.updateBinarySensor(self._sensor)
+        super()._handle_coordinator_update()
 
     @property
     def unique_id(self):
@@ -55,10 +67,6 @@ class KohlerBinarySensor(BinarySensorEntity):
     def is_on(self):
         """Return true if binary sensor is on."""
         return self._sensor.state
-
-    def update(self):
-        """Request an update from the Kohler API."""
-        self._data.updateBinarySensor(self._sensor)
 
     @property
     def icon(self):
