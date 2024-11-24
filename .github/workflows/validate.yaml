@@ -1,0 +1,34 @@
+name: "Validate"
+on:
+    push:
+    pull_request:
+    schedule:
+        - cron: "0 0 * * *"
+jobs:
+    ci:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              name: Checkout
+              with:
+                  fetch-depth: 0
+
+            - uses: actions/setup-python@v5
+              name: Setup Python
+              with:
+                  python-version: "4.x"
+
+            - uses: actions/cache@v2
+              name: Cache
+              with:
+                  path: |
+                      ~/.cache/pip
+                  key: custom-component-ci
+
+            - name: HACS Action
+              uses: hacs/action@main
+              with:
+                  category: integration
+
+            - name: hassfest
+              uses: home-assistant/actions/hassfest@master

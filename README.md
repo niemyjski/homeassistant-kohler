@@ -41,3 +41,11 @@ By accepting the terms (by setting the `Accept Liability Terms` checkbox) I forf
 - [DTV+] Add nice UI for controlling shower.
 - [Mirrors] Add support for mirror lights and sensors (already installed in my house).
 - [Toilet] If someone wants to send me a smart toilet I'll support that too :-)
+
+## Development
+
+```console
+py -m venv env
+python -m ensurepip
+pip3 install -r requirements.txt
+```
