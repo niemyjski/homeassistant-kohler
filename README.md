@@ -34,11 +34,8 @@ By accepting the terms (by setting the `Accept Liability Terms` checkbox) I forf
 **NOTE** This library is very early stages and I plan on adding support for much more. PRs are welcomed!
 
 - [Python Lib] [Try and get this nasty hack fixed](https://gist.github.com/niemyjski/6ba88dcdca7e76172c58530bac66eada)
-- [DTV+] Add binary_sensor/sensors for each valves, and gadgets
 - [DTV+] Add media player support (already supported by python library)
 - [DTV+] Add Steam support (already supported by python library)
-- [DTV+] Add device info + state attributes
-- [DTV+] Add nice UI for controlling shower.
 - [Mirrors] Add support for mirror lights and sensors (already installed in my house).
 - [Toilet] If someone wants to send me a smart toilet I'll support that too :-)
 
