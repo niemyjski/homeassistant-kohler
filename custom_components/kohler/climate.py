@@ -46,7 +46,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
         super().__init__(data)
         self._name = "Kohler Thermostat"
         self._data = data
-        self._id = self._data.macAddress() + "_themostat"
+        self._id = self._data.macAddress() + "_thermostat"
         self._hvac_mode = None
 
         self._attr_device_info = DeviceInfo(
