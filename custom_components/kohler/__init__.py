@@ -1,30 +1,25 @@
-from datetime import timedelta
-from typing import Optional, Union
-from homeassistant.helpers import entity_registry
-
-import homeassistant.helpers.config_validation as cv
-from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
-from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_HOST, Platform
-from homeassistant.helpers import discovery
-from homeassistant.util import Throttle
-from homeassistant.exceptions import ConfigEntryNotReady
-import voluptuous as vol
-from homeassistant.const import UnitOfTemperature
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
-
-import requests
-from requests.exceptions import HTTPError, ConnectTimeout
-
-from kohler import Kohler
+"""Kohler Integration"""
 
 import logging
-import async_timeout
 
-from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN, DATA_KOHLER
+from datetime import timedelta
+from typing import Optional
+
+import async_timeout
+import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.const import CONF_HOST, Platform, UnitOfTemperature
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import entity_registry
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from kohler import Kohler
+
+import requests
+from requests.exceptions import ConnectTimeout, HTTPError
+
+from .const import CONF_ACCEPT_LIABILITY_TERMS, DATA_KOHLER, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +29,6 @@ PLATFORMS = [
     Platform.SWITCH,
     Platform.WATER_HEATER,
 ]
-
 
 MIN_TIME_BETWEEN_VALUE_UPDATES = timedelta(seconds=20)
 MIN_TIME_BETWEEN_SYSTEM_UPDATES = timedelta(seconds=2)
@@ -59,7 +53,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kohler DTV from a config entry."""
-    _LOGGER.debug(f"Setting up Kohler integration.")
+    _LOGGER.debug("Setting up Kohler integration.")
 
     try:
         result = await hass.async_add_executor_job(
@@ -75,7 +69,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     raise ConfigEntryNotReady(
         f"Timeout while connecting to {entry.data.get(CONF_HOST)}"
     )
-    return False
 
 
 async def async_setup(hass, config):

@@ -1,9 +1,9 @@
 """Kohler LightEntity Integration"""
 
 from homeassistant.components.light import ATTR_BRIGHTNESS, LightEntity, ColorMode
-from homeassistant.helpers.entity import DeviceInfo
-from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.const import CONF_HOST
+from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 
 from . import DATA_KOHLER, KohlerData, KohlerDataLight
 

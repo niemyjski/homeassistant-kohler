@@ -2,11 +2,10 @@
 
 from homeassistant.core import callback
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 from homeassistant.const import CONF_HOST
-
+from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 
 from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
 

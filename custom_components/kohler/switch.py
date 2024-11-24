@@ -4,7 +4,7 @@ import logging
 import re
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -20,7 +20,7 @@ OUTLET_ID_PATTERN = re.compile(".*_valve([0-9])outlet([0-9])")
 
 async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler SwitchEntity platform."""
-    _LOGGER.debug(f"async_setup_entry for switches.")
+    _LOGGER.debug("async_setup_entry for switches.")
     data: KohlerData = hass.data[DATA_KOHLER]
 
     switches: list[KohlerSwitch] = []

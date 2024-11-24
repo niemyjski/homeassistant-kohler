@@ -1,10 +1,14 @@
+"""Switches kohler water heater"""
+
 from homeassistant.components.water_heater import (
-    STATE_OFF,
-    STATE_ON,
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
 )
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.const import (
+    STATE_OFF,
+    STATE_ON,
+)
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import callback
 

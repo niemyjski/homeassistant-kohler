@@ -1,14 +1,10 @@
 import logging
 
-from homeassistant.components.climate import (
-    STATE_OFF,
-    STATE_ON,
-    ClimateEntity,
-    ClimateEntityFeature,
-)
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import ClimateEntityFeature
 from homeassistant.components.climate.const import HVACMode
 from homeassistant.core import callback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
