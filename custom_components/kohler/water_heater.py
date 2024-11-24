@@ -99,7 +99,7 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         """Return the temperature we try to reach."""
         return self._data.getTargetTemperature()
 
-    async def set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs):
         """Set new target temperatures."""
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is not None:
@@ -134,7 +134,7 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         """Return the list of available operation modes."""
         return SUPPORT_WATER_HEATER
 
-    async def set_operation_mode(self, operation_mode):
+    async def async_set_operation_mode(self, operation_mode):
         """Set operation mode."""
         if operation_mode == STATE_ON:
             await self.hass.async_add_executor_job(
