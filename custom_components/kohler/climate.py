@@ -1,3 +1,5 @@
+"""Kohler Climate Integration"""
+
 import logging
 
 from homeassistant.components.climate import ClimateEntity
@@ -68,7 +70,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        _LOGGER.info(f"_id = {self._id}")
+        _LOGGER.info("_id = %s", self._id)
         return self._id
 
     @property
@@ -79,7 +81,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def name(self):
         """Return the name of the climate device."""
-        _LOGGER.info(f"_name = {self._name}")
+        _LOGGER.info("_name = %s", self._name)
         return self._name
 
     @property

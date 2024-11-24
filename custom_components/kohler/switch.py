@@ -26,10 +26,10 @@ async def async_setup_entry(hass, config, add_entities):
     switches: list[KohlerSwitch] = []
     for sensor in data.binarySensors:
         if sensor.installed:
-            _LOGGER.debug(f"Checking whether to add a switch for {sensor.id}")
+            _LOGGER.debug("Checking whether to add a switch for %s", sensor.id)
             sensor_id_match = OUTLET_ID_PATTERN.fullmatch(sensor.id)
             if sensor_id_match:
-                _LOGGER.debug(f"Adding a switch for {sensor.id}")
+                _LOGGER.debug("Adding a switch for %s", sensor.id)
                 switches.append(
                     KohlerSwitch(
                         data,

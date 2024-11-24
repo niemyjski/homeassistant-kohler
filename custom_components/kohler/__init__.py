@@ -228,7 +228,7 @@ class KohlerData(DataUpdateCoordinator):
     def _updateValues(self):
         try:
             self._values = self._api.values()
-            _LOGGER.debug(f"Updated values {self._values}")
+            _LOGGER.debug("Updated values %s", self._values)
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update values: %s", str(ex))
 
@@ -241,7 +241,7 @@ class KohlerData(DataUpdateCoordinator):
     def _updateSystemInfo(self):
         try:
             self._sysInfo = self._api.systemInfo()
-            _LOGGER.debug(f"Updated system info {self._sysInfo}")
+            _LOGGER.debug("Updated system info %s", self._sysInfo)
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update  system info: %s", str(ex))
 
@@ -331,7 +331,7 @@ class KohlerData(DataUpdateCoordinator):
                 None,
                 "mdi:shower",
                 "mdi:shower",
-                f"Kohler Shower Status",
+                "Kohler Shower Status",
                 True,
                 None,
                 "shower_on",
@@ -348,7 +348,7 @@ class KohlerData(DataUpdateCoordinator):
                 "moisture",
                 "mdi:radiator",
                 "mdi:radiator-disabled",
-                f"Kohler Steam Status",
+                "Kohler Steam Status",
                 self.isSteamInstalled(),
                 None,
                 "steam_running",
@@ -376,7 +376,7 @@ class KohlerData(DataUpdateCoordinator):
             state = self.getValue(sensor.valueKey)
             _LOGGER.debug(f"Updating value key sensor {sensor.valueKey} to {state}.")
 
-        sensor.state = state == True or state == "True" or state == "On"
+        sensor.state = state is True or state == "True" or state == "On"
         _LOGGER.debug(f"Sensor {sensor.id} state is {sensor.state}.")
 
     def unitOfMeasurement(self):
@@ -393,12 +393,12 @@ class KohlerData(DataUpdateCoordinator):
         return self.getValue("controller_version_string")
 
     def getInstalledValveOutlets(self, valve: int = 1):
-        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
-        if outletCount < 1:
+        outlet_count = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outlet_count < 1:
             return 0
 
         outlets = ""
-        for outlet in range(1, outletCount):
+        for outlet in range(1, outlet_count):
             # NOTE: Turn on last used outlets for now.
             if self.isOutletOn(valve, outlet):
                 outlets += str(outlet)
@@ -406,36 +406,36 @@ class KohlerData(DataUpdateCoordinator):
         return 0 if not outlets else int(outlets)
 
     def getOpenValveOutlets(self, valve: int = 1):
-        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
-        if outletCount < 1:
+        outlet_count = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outlet_count < 1:
             return ""
 
         outlets = ""
-        for outlet in range(1, outletCount):
+        for outlet in range(1, outlet_count):
             if self.isOutletOn(valve, outlet):
                 outlets += str(outlet)
 
         return outlets
 
     def genValveOutletOpen(self, valve: int, outletOn: int):
-        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
-        if outletCount < 1:
+        outlet_count = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outlet_count < 1:
             return ""
 
         outlets = ""
-        for outlet in range(1, outletCount):
+        for outlet in range(1, outlet_count):
             if self.isOutletOn(valve, outlet) or (outlet == outletOn):
                 outlets += str(outlet)
 
         return outlets
 
     def genValveOutletClosed(self, valve: int, outletOff: int):
-        outletCount = int(self.getValue(f"valve{valve}PortsAvailable", 0))
-        if outletCount < 1:
+        outlet_count = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        if outlet_count < 1:
             return ""
 
         outlets = ""
-        for outlet in range(1, outletCount):
+        for outlet in range(1, outlet_count):
             if self.isOutletOn(valve, outlet) and (outlet != outletOff):
                 outlets += str(outlet)
 
@@ -491,7 +491,7 @@ class KohlerData(DataUpdateCoordinator):
             return max(temps)
 
     def setTargetTemperature(self, temperature):
-        _LOGGER.debug(f"setTargetTemperature {temperature}")
+        _LOGGER.debug("setTargetTemperature %s", temperature)
         self._target_temperature = float(temperature)
 
         if self.isShowerOn():
@@ -510,7 +510,7 @@ class KohlerData(DataUpdateCoordinator):
         return self.isValveOn(1) or self.isValveOn(2)
 
     def turnOnShower(self, temp=None):
-        _LOGGER.debug(f"turnOnShower {temp}")
+        _LOGGER.debug("turnOnShower %s", temp)
         valve1Outlets = self.getInstalledValveOutlets(1)
         valve2Outlets = self.getInstalledValveOutlets(2)
         if temp is None:
@@ -520,7 +520,7 @@ class KohlerData(DataUpdateCoordinator):
         self._updateSystemInfo()
 
     def turnOffShower(self):
-        _LOGGER.debug(f"turnOffShower")
+        _LOGGER.debug("turnOffShower")
         self._api.stopShower()
         self._updateSystemInfo()
 
