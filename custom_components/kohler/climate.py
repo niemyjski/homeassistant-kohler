@@ -63,7 +63,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._hvac_mode = HVACMode.HEAT if self._data.isShowerOn() else HVACMode.OFF
-        _LOGGER.info(f"_handle_coordinator_update. _hvac_mode = {self._hvac_mode}")
+        _LOGGER.info("_handle_coordinator_update. _hvac_mode = %s", self._hvac_mode)
 
         super()._handle_coordinator_update()
 
@@ -87,21 +87,23 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def temperature_unit(self):
         """Return the unit of measurement."""
-        _LOGGER.info(f"temperature_unit = {self._data.unitOfMeasurement()}")
+        _LOGGER.info("temperature_unit = %s", self._data.unitOfMeasurement())
         return self._data.unitOfMeasurement()
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
         _LOGGER.info(
-            f"current_temperature = {self._data.getCurrentTemperature()}, target_temperature = {self._data.getTargetTemperature()}"
+            "current_temperature = %s, target_temperature = %s",
+            self._data.getCurrentTemperature(),
+            self._data.getTargetTemperature(),
         )
         return self._data.getCurrentTemperature() or self._data.getTargetTemperature()
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        _LOGGER.info(f"target_temperature = {self._data.getTargetTemperature()}")
+        _LOGGER.info("target_temperature = %s", self._data.getTargetTemperature())
         return self._data.getTargetTemperature()
 
     async def async_set_temperature(self, **kwargs):
@@ -134,7 +136,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def hvac_mode(self):
         """Return current operation ie. on, off."""
-        _LOGGER.info(f"hvac_mode = {self._hvac_mode}")
+        _LOGGER.info("hvac_mode = %s", self._hvac_mode)
         return self._hvac_mode
 
     @property

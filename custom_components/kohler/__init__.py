@@ -96,7 +96,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def initialize_integration(hass, conf):
-
     # In config flow, this should never happen
     if not conf.get(CONF_ACCEPT_LIABILITY_TERMS):
         _LOGGER.error(
@@ -525,7 +524,7 @@ class KohlerData(DataUpdateCoordinator):
         self._updateSystemInfo()
 
     def openOutlet(self, valveId, outletId):
-        _LOGGER.debug(f"openOutlet valveId={valveId} outletId={outletId}")
+        _LOGGER.debug("openOutlet valveId=%s outletId=%s", valveId, outletId)
         valve1Outlets = (
             self.genValveOutletOpen(1, outletId)
             if valveId == 1
@@ -544,7 +543,7 @@ class KohlerData(DataUpdateCoordinator):
         self._updateSystemInfo()
 
     def closeOutlet(self, valveId, outletId):
-        _LOGGER.debug(f"closeOutlet valveId={valveId} outletId={outletId}")
+        _LOGGER.debug("closeOutlet valveId=%s outletId=%s", valveId, outletId)
         valve1Outlets = (
             self.genValveOutletClosed(1, outletId)
             if valveId == 1
