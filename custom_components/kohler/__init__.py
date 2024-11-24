@@ -16,7 +16,6 @@ from homeassistant.helpers import entity_registry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from kohler import Kohler
 
-import requests
 from requests.exceptions import ConnectTimeout, HTTPError
 
 from .const import CONF_ACCEPT_LIABILITY_TERMS, DATA_KOHLER, DOMAIN
