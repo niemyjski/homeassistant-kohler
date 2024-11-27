@@ -116,9 +116,9 @@ def initialize_integration(hass, conf):
     except (ConnectTimeout, HTTPError) as ex:
         _LOGGER.error("Unable to connect to Kohler service: %s", str(ex))
         hass.components.persistent_notification.create(
-            "Error: {}<br />"
-            "You will need to restart hass after fixing."
-            "".format(ex),
+            "Error: {}<br />" "You will need to restart hass after fixing." "".format(
+                ex
+            ),
             title=NOTIFICATION_TITLE,
             notification_id=NOTIFICATION_ID,
         )
@@ -165,6 +165,34 @@ class KohlerDataBinarySensor(KohlerDataEntity):
         self.iconOff = iconOff
         self.systemKey = systemKey
         self.valueKey = valueKey
+
+
+class KohlerDataOutletBinarySensor(KohlerDataBinarySensor):
+    def __init__(
+        self,
+        id: str,
+        deviceId: str,
+        deviceClass: Optional[str],
+        iconOn: str,
+        iconOff: str,
+        name: str,
+        installed: bool,
+        valve: int,
+        systemKey: str = None,
+        valueKey: str = None,
+    ):
+        super().__init__(
+            id,
+            deviceId,
+            deviceClass,
+            iconOn,
+            iconOff,
+            name,
+            installed,
+            systemKey,
+            valueKey,
+        )
+        self.valve = valve
 
 
 class KohlerData(DataUpdateCoordinator):
@@ -307,7 +335,7 @@ class KohlerData(DataUpdateCoordinator):
                     self.macAddress() + "_" + outletId,
                 )
                 sensors.append(
-                    KohlerDataBinarySensor(
+                    KohlerDataOutletBinarySensor(
                         self.macAddress() + "_" + outletId,
                         self.macAddress() + "_" + outletId,
                         None,
@@ -315,6 +343,7 @@ class KohlerData(DataUpdateCoordinator):
                         "mdi:valve-closed",
                         f"Kohler Valve {valve} Outlet {outlet}",
                         self.isOutletInstalled(valve, outlet),
+                        valve,
                         outletId,
                     )
                 )
