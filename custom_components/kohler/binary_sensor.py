@@ -7,7 +7,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.const import CONF_HOST
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
 
-from . import DATA_KOHLER, KohlerData, KohlerDataBinarySensor
+from . import (
+    DATA_KOHLER,
+    KohlerData,
+    KohlerDataBinarySensor,
+    KohlerDataOutletBinarySensor,
+)
 
 
 async def async_setup_entry(hass, config, add_entities):
@@ -17,7 +22,10 @@ async def async_setup_entry(hass, config, add_entities):
     sensors: list[KohlerBinarySensor] = []
     for sensor in data.binarySensors:
         if sensor.installed:
-            sensors.append(KohlerBinarySensor(data, sensor))
+            if isinstance(sensor, KohlerDataOutletBinarySensor):
+                sensors.append(KohlerOutletBinarySensor(data, sensor))
+            else:
+                sensors.append(KohlerBinarySensor(data, sensor))
 
     add_entities(sensors)
 
@@ -73,3 +81,17 @@ class KohlerBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return self._sensor.iconOn
 
         return self._sensor.iconOff
+
+
+class KohlerOutletBinarySensor(KohlerBinarySensor):
+    """Representation of a single binary sensor in a Kohler device."""
+
+    def __init__(self, data: KohlerData, sensor: KohlerDataOutletBinarySensor):
+        """Initialize a Kohler binary sensor."""
+        super().__init__(data, sensor)
+        self._valve = sensor.valve
+
+    @property
+    def is_on(self):
+        """Return true if binary sensor is on."""
+        return self._sensor.state and self._data.isValveOn(self._valve)
