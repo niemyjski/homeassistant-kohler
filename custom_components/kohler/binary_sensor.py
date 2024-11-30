@@ -77,7 +77,7 @@ class KohlerBinarySensor(CoordinatorEntity, BinarySensorEntity):
     @property
     def icon(self):
         """Get the icon to use in the front end."""
-        if self._sensor.state:
+        if self.is_on:
             return self._sensor.iconOn
 
         return self._sensor.iconOff
