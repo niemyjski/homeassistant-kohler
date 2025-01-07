@@ -56,7 +56,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         result = await hass.async_add_executor_job(
-            initialize_integration, hass, entry.data
+            initialize_integration,
+            hass,
+            entry,
         )
         if result:
             await hass.data[DATA_KOHLER].async_config_entry_first_refresh()
@@ -94,9 +96,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
-def initialize_integration(hass, conf):
+def initialize_integration(hass: HomeAssistant, conf: ConfigEntry):
     # In config flow, this should never happen
-    if not conf.get(CONF_ACCEPT_LIABILITY_TERMS):
+    if not conf.data.get(CONF_ACCEPT_LIABILITY_TERMS):
         _LOGGER.error(
             "Unable to setup Kohler integration. You will need to read and accept the Waiver Of liability."
         )
@@ -107,7 +109,7 @@ def initialize_integration(hass, conf):
         )
         return False
 
-    host: str = conf.get(CONF_HOST)
+    host: str = conf.data.get(CONF_HOST)
     try:
         api = Kohler(kohlerHost=host)
         data = KohlerData(hass, api, conf)
@@ -210,12 +212,13 @@ class KohlerData(DataUpdateCoordinator):
             # api can be compared via `__eq__` to avoid duplicate updates
             # being dispatched to listeners
             always_update=True,
+            config_entry=conf,
         )
 
         """Init Kohler data object."""
         self._hass = hass
         self._api = api
-        self._conf = conf
+        self._conf = conf.data
         self._sysInfo = {}
         self._target_temperature = None
 
