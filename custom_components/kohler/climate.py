@@ -32,7 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler platform."""
-    _LOGGER.info("Setting up Kohler ClimateEntity")
+    _LOGGER.debug("Setting up Kohler ClimateEntity")
 
     data: KohlerData = hass.data[DATA_KOHLER]
     add_entities([KohlerThermostat(data)])
@@ -63,14 +63,14 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._hvac_mode = HVACMode.HEAT if self._data.isShowerOn() else HVACMode.OFF
-        _LOGGER.info("_handle_coordinator_update. _hvac_mode = %s", self._hvac_mode)
+        _LOGGER.debug("_handle_coordinator_update. _hvac_mode = %s", self._hvac_mode)
 
         super()._handle_coordinator_update()
 
     @property
     def unique_id(self):
         """Return a unique ID."""
-        _LOGGER.info("_id = %s", self._id)
+        _LOGGER.debug("_id = %s", self._id)
         return self._id
 
     @property
@@ -81,19 +81,19 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def name(self):
         """Return the name of the climate device."""
-        _LOGGER.info("_name = %s", self._name)
+        _LOGGER.debug("_name = %s", self._name)
         return self._name
 
     @property
     def temperature_unit(self):
         """Return the unit of measurement."""
-        _LOGGER.info("temperature_unit = %s", self._data.unitOfMeasurement())
+        _LOGGER.debug("temperature_unit = %s", self._data.unitOfMeasurement())
         return self._data.unitOfMeasurement()
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        _LOGGER.info(
+        _LOGGER.debug(
             "current_temperature = %s, target_temperature = %s",
             self._data.getCurrentTemperature(),
             self._data.getTargetTemperature(),
@@ -103,7 +103,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        _LOGGER.info("target_temperature = %s", self._data.getTargetTemperature())
+        _LOGGER.debug("target_temperature = %s", self._data.getTargetTemperature())
         return self._data.getTargetTemperature()
 
     async def async_set_temperature(self, **kwargs):
@@ -113,8 +113,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
             await self.hass.async_add_executor_job(
                 self._data.setTargetTemperature, temp
             )
-
-        await self._data.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     @property
     def min_temp(self):
@@ -136,7 +135,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
     @property
     def hvac_mode(self):
         """Return current operation ie. on, off."""
-        _LOGGER.info("hvac_mode = %s", self._hvac_mode)
+        _LOGGER.debug("hvac_mode = %s", self._hvac_mode)
         return self._hvac_mode
 
     @property
@@ -153,17 +152,17 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
             await self.hass.async_add_executor_job(
                 self._data.turnOnShower, self._data.getTargetTemperature()
             )
-        self.coordinator.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self):
         await self.hass.async_add_executor_job(
             self._data.turnOnShower, self._data.getTargetTemperature()
         )
-        self.coordinator.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self):
         await self.hass.async_add_executor_job(self._data.turnOffShower)
-        self.coordinator.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     @property
     def icon(self):

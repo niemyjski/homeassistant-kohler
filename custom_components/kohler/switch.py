@@ -1,4 +1,4 @@
-"""Switches kohler outlet on/off """
+"""Switches kohler outlet on/off"""
 
 import logging
 import re
@@ -102,11 +102,12 @@ class KohlerSwitch(CoordinatorEntity, SwitchEntity):
         await self.hass.async_add_executor_job(
             self._data.openOutlet, self._valve, self._outlet
         )
-        self.coordinator.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Close outlet."""
         await self.hass.async_add_executor_job(
             self._data.closeOutlet, self._valve, self._outlet
         )
-        self.coordinator.async_update_listeners()
+
+        await self.coordinator.async_request_refresh()

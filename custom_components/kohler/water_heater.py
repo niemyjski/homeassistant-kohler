@@ -107,7 +107,7 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
                 self._data.setTargetTemperature, temp
             )
 
-        self.coordinator.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     @property
     def min_temp(self):
@@ -145,7 +145,7 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
                 self._data.turnOffShower, self._data.getTargetTemperature()
             )
 
-        self.coordinator.async_update_listeners()
+        await self.coordinator.async_request_refresh()
 
     @property
     def icon(self):
