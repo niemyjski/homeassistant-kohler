@@ -616,7 +616,6 @@ class KohlerData(DataUpdateCoordinator):
 
         self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
         self._api.quickShower(2, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
-        
 
     def closeOutlet(self, valveId, outletId):
         _LOGGER.debug("closeOutlet valveId=%s outletId=%s", valveId, outletId)
