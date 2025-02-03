@@ -524,8 +524,10 @@ class KohlerData(DataUpdateCoordinator):
         outlet_mappings = (
             self._valve1_outlet_mappings if valve == 1 else self._valve2_outlet_mappings
         )
+        
         if outlet > len(outlet_mappings):
             return False
+        
         mapped_outlet = outlet_mappings[outlet - 1]
         return self.getSystemInfo(f"valve{valve}outlet{mapped_outlet}", False)
 
