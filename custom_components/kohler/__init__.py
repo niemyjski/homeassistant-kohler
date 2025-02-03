@@ -180,6 +180,7 @@ class KohlerDataOutletBinarySensor(KohlerDataBinarySensor):
         name: str,
         installed: bool,
         valve: int,
+        outlet: int,
         systemKey: str = None,
         valueKey: str = None,
     ):
@@ -195,6 +196,7 @@ class KohlerDataOutletBinarySensor(KohlerDataBinarySensor):
             valueKey,
         )
         self.valve = valve
+        self.outlet = outlet
 
 
 class KohlerData(DataUpdateCoordinator):
@@ -221,6 +223,8 @@ class KohlerData(DataUpdateCoordinator):
         self._conf = conf.data
         self._sysInfo = {}
         self._target_temperature = None
+        self._valve1_outlet_mappings = []
+        self._valve2_outlet_mappings = []
 
     async def _async_setup(self):
         """Set up the coordinator
@@ -253,6 +257,7 @@ class KohlerData(DataUpdateCoordinator):
     def update(self):
         self._updateValues()
         self._updateSystemInfo()
+        self._mapOutlets()
 
     def _updateValues(self):
         try:
@@ -260,6 +265,28 @@ class KohlerData(DataUpdateCoordinator):
             _LOGGER.debug("Updated values %s", self._values)
         except (ConnectTimeout, HTTPError) as ex:
             _LOGGER.error("Unable to update values: %s", str(ex))
+
+    def _mapOutlets(self):
+        """Map the outlets to the order on the UI."""
+        valve1_port_count = int(self.getValue("valve1PortsAvailable"))
+        valve2_port_count = int(self.getValue("valve2PortsAvailable"))
+        _valve1_outlet_mappings = [0] * valve1_port_count
+        _valve2_outlet_mappings = [0] * valve2_port_count
+
+        if valve1_port_count > 0:
+            for port_num in range(1, valve1_port_count + 1):
+                _valve1_outlet_mappings[port_num - 1] = self.getValue(
+                    f"valve1_outlet{port_num}_func"
+                )["id"]
+
+        if valve2_port_count > 0:
+            for port_num in range(1, valve2_port_count + 1):
+                _valve2_outlet_mappings[port_num - 1] = self.getValue(
+                    f"valve2_outlet{port_num}_func"
+                )["id"]
+
+        self._valve1_outlet_mappings = _valve1_outlet_mappings
+        self._valve2_outlet_mappings = _valve2_outlet_mappings
 
     def getConf(self, key: str):
         return self._conf[key]
@@ -276,6 +303,9 @@ class KohlerData(DataUpdateCoordinator):
 
     def getSystemInfo(self, key, defaultValue=None):
         return defaultValue if key not in self._sysInfo else self._sysInfo[key]
+
+    def setSystemInfo(self, key, value):
+        self._sysInfo[key] = value
 
     @property
     def lights(self):
@@ -347,6 +377,7 @@ class KohlerData(DataUpdateCoordinator):
                         f"Kohler Valve {valve} Outlet {outlet}",
                         self.isOutletInstalled(valve, outlet),
                         valve,
+                        outlet,
                         outletId,
                     )
                 )
@@ -398,15 +429,24 @@ class KohlerData(DataUpdateCoordinator):
 
     def updateBinarySensor(self, sensor: KohlerDataBinarySensor):
         state = None
+        if isinstance(sensor, KohlerDataOutletBinarySensor):
+            outletSensor: KohlerDataOutletBinarySensor = sensor
+            outletSensor.state = self.isOutletOn(
+                outletSensor.valve, outletSensor.outlet
+            )
+        else:
+            if sensor.systemKey:
+                state = self.getSystemInfo(sensor.systemKey)
+                _LOGGER.debug(
+                    f"Updating system info sensor {sensor.systemKey} to {state}."
+                )
+            elif sensor.valueKey:
+                state = self.getValue(sensor.valueKey)
+                _LOGGER.debug(
+                    f"Updating value key sensor {sensor.valueKey} to {state}."
+                )
 
-        if sensor.systemKey:
-            state = self.getSystemInfo(sensor.systemKey)
-            _LOGGER.debug(f"Updating system info sensor {sensor.systemKey} to {state}.")
-        elif sensor.valueKey:
-            state = self.getValue(sensor.valueKey)
-            _LOGGER.debug(f"Updating value key sensor {sensor.valueKey} to {state}.")
-
-        sensor.state = state is True or state == "True" or state == "On"
+            sensor.state = state is True or state == "True" or state == "On"
         _LOGGER.debug(f"Sensor {sensor.id} state is {sensor.state}.")
 
     def unitOfMeasurement(self):
@@ -481,7 +521,15 @@ class KohlerData(DataUpdateCoordinator):
         return self.getValue(f"valve{valve}_outlet{outlet}_func") is not None
 
     def isOutletOn(self, valve: int, outlet: int) -> bool:
-        return self.getSystemInfo(f"valve{valve}outlet{outlet}", False)
+        outlet_mappings = (
+            self._valve1_outlet_mappings if valve == 1 else self._valve2_outlet_mappings
+        )
+        
+        if outlet > len(outlet_mappings):
+            return False
+        
+        mapped_outlet = outlet_mappings[outlet - 1]
+        return self.getSystemInfo(f"valve{valve}outlet{mapped_outlet}", False)
 
     def isValveOn(self, valve: int) -> bool:
         return self.getSystemInfo(f"valve{valve}_Currentstatus", "Off") == "On"
@@ -534,7 +582,6 @@ class KohlerData(DataUpdateCoordinator):
             self._api.quickShower(
                 2, valve1Outlets, 0, temperature, valve2Outlets, 0, temperature
             )
-            self._updateSystemInfo()
 
     def isShowerOn(self) -> bool:
         return self.isValveOn(1) or self.isValveOn(2)
@@ -547,12 +594,10 @@ class KohlerData(DataUpdateCoordinator):
             temp = self.getTargetTemperature()
 
         self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
-        self._updateSystemInfo()
 
     def turnOffShower(self):
         _LOGGER.debug("turnOffShower")
         self._api.stopShower()
-        self._updateSystemInfo()
 
     def openOutlet(self, valveId, outletId):
         _LOGGER.debug("openOutlet valveId=%s outletId=%s", valveId, outletId)
@@ -571,7 +616,6 @@ class KohlerData(DataUpdateCoordinator):
 
         self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
         self._api.quickShower(2, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
-        self._updateSystemInfo()
 
     def closeOutlet(self, valveId, outletId):
         _LOGGER.debug("closeOutlet valveId=%s outletId=%s", valveId, outletId)
@@ -590,4 +634,3 @@ class KohlerData(DataUpdateCoordinator):
 
         self._api.quickShower(1, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
         self._api.quickShower(2, valve1Outlets, 0, temp, valve2Outlets, 0, temp)
-        self._updateSystemInfo()

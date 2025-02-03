@@ -8,5 +8,5 @@
     "iot_class": "local_polling",
     "issue_tracker": "https://github.com/niemyjski/homeassistant-kohler/issues",
     "requirements": ["kohler>=0.0.6"],
-    "version": "0.4.2"
+    "version": "0.4.3"
 }
