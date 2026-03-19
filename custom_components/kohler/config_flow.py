@@ -34,7 +34,11 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle a flow initialized by the user."""
         errors: dict[str, str] = {}
-        default_host = self._discovered_host or ""
+        default_host = (
+            user_input.get(CONF_HOST)
+            if user_input is not None
+            else self._discovered_host or ""
+        )
 
         if user_input is not None:
             host = user_input[CONF_HOST]

@@ -102,7 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if normalized_mac is not None:
         dr.async_get(hass).async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, coordinator.macAddress())},
+            identifiers={(DOMAIN, normalized_mac)},
             connections={(CONNECTION_NETWORK_MAC, normalized_mac)},
             manufacturer=MANUFACTURER,
             configuration_url=f"http://{host}",

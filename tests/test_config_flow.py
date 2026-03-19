@@ -66,6 +66,12 @@ async def test_form_cannot_connect(hass):
 
     assert result2["type"] == data_entry_flow.FlowResultType.FORM
     assert result2["errors"] == {CONF_HOST: "cannot_connect"}
+    host_key = next(
+        key
+        for key in result2["data_schema"].schema
+        if getattr(key, "schema", None) == CONF_HOST
+    )
+    assert host_key.default() == "1.1.1.1"
 
 
 async def test_dhcp_discovery_prefills_user_form(hass):
@@ -109,15 +115,19 @@ async def test_dhcp_updates_existing_entry_by_unique_id(hass):
     )
     entry.add_to_hass(hass)
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN,
-        context={"source": config_entries.SOURCE_DHCP},
-        data=DhcpServiceInfo(
-            ip="192.0.2.30",
-            hostname="kohler-controller",
-            macaddress="001122334455",
-        ),
-    )
+    with patch(
+        "custom_components.kohler.config_flow.KohlerFlowHandler.test_connection",
+        new=AsyncMock(return_value="00:11:22:33:44:55"),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_DHCP},
+            data=DhcpServiceInfo(
+                ip="192.0.2.30",
+                hostname="kohler-controller",
+                macaddress="001122334455",
+            ),
+        )
 
     await hass.async_block_till_done()
 
