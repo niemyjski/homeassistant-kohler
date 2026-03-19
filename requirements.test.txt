@@ -6,4 +6,4 @@ coverage
 ruff
 mypy
 homeassistant
-kohler>=0.1.0
+kohler>=0.1.1

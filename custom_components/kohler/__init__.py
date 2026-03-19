@@ -8,14 +8,23 @@ from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers import entity_registry as er
 
 from kohler import Kohler
 
-from .const import CONF_ACCEPT_LIABILITY_TERMS, DATA_KOHLER, DOMAIN
+from .const import (
+    CONF_ACCEPT_LIABILITY_TERMS,
+    DATA_KOHLER,
+    DEFAULT_NAME,
+    DOMAIN,
+    MANUFACTURER,
+    MODEL,
+)
 from .coordinator import KohlerDataUpdateCoordinator
-from .entity_helpers import build_outlet_descriptors
+from .entity_helpers import build_outlet_descriptors, normalize_mac_address
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +98,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DATA_KOHLER] = coordinator
 
+    normalized_mac = normalize_mac_address(coordinator.macAddress())
+    if normalized_mac is not None:
+        dr.async_get(hass).async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, normalized_mac)},
+            connections={(CONNECTION_NETWORK_MAC, normalized_mac)},
+            manufacturer=MANUFACTURER,
+            configuration_url=f"http://{host}",
+            model=MODEL,
+            name=DEFAULT_NAME,
+            hw_version=coordinator.firmwareVersion(),
+            sw_version=coordinator.firmwareVersion(),
+        )
+        if entry.unique_id != normalized_mac:
+            hass.config_entries.async_update_entry(entry, unique_id=normalized_mac)
+
     _async_update_outlet_entity_names(hass, entry, coordinator)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -103,7 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate older config entries and entity IDs."""
-    if entry.version > 2:
+    if entry.version > 3:
         _LOGGER.error("Unsupported config entry version %s", entry.version)
         return False
 
@@ -130,6 +155,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
 
         hass.config_entries.async_update_entry(entry, version=2)
+
+    if entry.version == 2:
+        hass.config_entries.async_update_entry(entry, version=3)
 
     return True
 

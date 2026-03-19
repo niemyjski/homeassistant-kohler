@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from custom_components.kohler.entity_helpers import (
     build_outlet_descriptors,
     format_kohler_datetime,
+    normalize_mac_address,
     translate_auto_purge_setting,
     translate_cold_water_setting,
     translate_connection_status,
@@ -108,3 +109,18 @@ def test_translate_controller_settings_to_ui_labels():
     assert translate_max_run_time_setting(2, False) == "Off"
     assert translate_connection_status("con") == "Connected"
     assert translate_connection_status("intermittent") == "Intermittent"
+
+
+def test_normalize_mac_address_accepts_supported_formats():
+    """MAC addresses should normalize across the common formats we encounter."""
+    assert normalize_mac_address("00:11:22:33:44:55") == "00:11:22:33:44:55"
+    assert normalize_mac_address("00-11-22-33-44-55") == "00:11:22:33:44:55"
+    assert normalize_mac_address("001122334455") == "00:11:22:33:44:55"
+    assert normalize_mac_address("AA-bb-CC-dd-EE-ff") == "aa:bb:cc:dd:ee:ff"
+
+
+def test_normalize_mac_address_rejects_invalid_values():
+    """Invalid MAC address values should be rejected cleanly."""
+    assert normalize_mac_address("00:11:22:33:44") is None
+    assert normalize_mac_address("00:11:22:33:44:gg") is None
+    assert normalize_mac_address(12345) is None
