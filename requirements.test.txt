@@ -1,0 +1,9 @@
+pytest
+pytest-homeassistant-custom-component
+pytest-asyncio
+pytest-cov
+coverage
+ruff
+mypy
+homeassistant
+kohler>=0.1.0

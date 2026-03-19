@@ -9,7 +9,20 @@
     "homeassistant",
     "Kohler",
     "niemyjski",
-    "venv"
+    "venv",
+    "uv"
   ],
-  "python.pythonPath": "venv/bin/python"
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  }
 }
