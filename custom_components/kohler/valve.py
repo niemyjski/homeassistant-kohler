@@ -102,9 +102,9 @@ class KohlerValve(CoordinatorEntity, ValveEntity):
     async def async_open_valve(self, **kwargs) -> None:
         """Open the valve."""
         await self.coordinator.openOutlet(self._valve, self._outlet)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     async def async_close_valve(self, **kwargs) -> None:
         """Close the valve."""
         await self.coordinator.closeOutlet(self._valve, self._outlet)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()

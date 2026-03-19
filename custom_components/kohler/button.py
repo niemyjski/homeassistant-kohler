@@ -59,7 +59,7 @@ class KohlerMassageButton(KohlerButton):
     async def async_press(self) -> None:
         """Press the button."""
         await self.coordinator.massage_toggle()
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
 
 class KohlerSyncTimeButton(KohlerButton):
@@ -73,7 +73,7 @@ class KohlerSyncTimeButton(KohlerButton):
     async def async_press(self) -> None:
         """Press the button."""
         await self.coordinator.sync_time()
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
 
 class KohlerResetControllerFaultsButton(KohlerButton):
@@ -89,7 +89,7 @@ class KohlerResetControllerFaultsButton(KohlerButton):
     async def async_press(self) -> None:
         """Press the button."""
         await self.coordinator.reset_controller_faults()
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
 
 class KohlerResetKonnectFaultsButton(KohlerButton):
@@ -103,7 +103,7 @@ class KohlerResetKonnectFaultsButton(KohlerButton):
     async def async_press(self) -> None:
         """Press the button."""
         await self.coordinator.reset_konnect_faults()
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
 
 class KohlerCheckUpdatesButton(KohlerButton):
@@ -117,5 +117,4 @@ class KohlerCheckUpdatesButton(KohlerButton):
     async def async_press(self) -> None:
         """Press the button."""
         await self.coordinator.check_updates()
-        # Does not strictly need a refresh, but validates the line resolves.
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()

@@ -107,7 +107,7 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         if temp is not None:
             await self.coordinator.setTargetTemperature(temp)
 
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     @property
     def min_temp(self):
@@ -149,7 +149,7 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         else:
             await self.coordinator.turnOffShower()
 
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     @property
     def icon(self):

@@ -108,7 +108,7 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is not None:
             await self.coordinator.setTargetTemperature(temp)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     @property
     def min_temp(self):
@@ -158,15 +158,15 @@ class KohlerThermostat(CoordinatorEntity, ClimateEntity):
             await self.coordinator.turnOffShower()
         else:
             await self.coordinator.turnOnShower(self.coordinator.getTargetTemperature())
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     async def async_turn_on(self):
         await self.coordinator.turnOnShower(self.coordinator.getTargetTemperature())
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     async def async_turn_off(self):
         await self.coordinator.turnOffShower()
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     @property
     def icon(self):

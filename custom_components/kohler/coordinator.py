@@ -1,6 +1,8 @@
 """DataUpdateCoordinator for the Kohler integration."""
 
 import asyncio
+from dataclasses import dataclass
+import functools
 import logging
 import time
 from datetime import datetime, timedelta
@@ -11,7 +13,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
-import functools
 
 from kohler import Kohler, KohlerError
 
@@ -32,8 +33,10 @@ def api_command(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            async with asyncio.timeout(10.0):
-                return await func(*args, **kwargs)
+            coordinator = args[0]
+            async with coordinator._api_lock:
+                async with asyncio.timeout(10.0):
+                    return await func(*args, **kwargs)
         except asyncio.TimeoutError as err:
             raise HomeAssistantError(
                 f"Timeout communicating with Kohler API: {err}"
@@ -53,6 +56,17 @@ def api_command(func):
 _LOGGER = logging.getLogger(__name__)
 
 DATE_TIME_SETTING_INDEX = 2
+QUICK_SHOWER_DEBOUNCE_SECONDS = 0.35
+POST_COMMAND_REFRESH_DELAY_SECONDS = 1.0
+
+
+@dataclass(slots=True)
+class QuickShowerState:
+    """Queued quick shower payload."""
+
+    valve1_outlet: int
+    valve2_outlet: int
+    temperature: int
 
 
 class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
@@ -77,14 +91,22 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         self._valve1_outlet_mappings = []
         self._valve2_outlet_mappings = []
         self._last_shower_on_time = 0
+        self._api_lock = asyncio.Lock()
+        self._pending_quick_shower: QuickShowerState | None = None
+        self._pending_quick_shower_task: asyncio.Task[None] | None = None
+        self._pending_quick_shower_waiters: list[asyncio.Future[None]] = []
+        self._post_command_refresh_task: asyncio.Task[None] | None = None
+        self._selected_outlet_state: dict[int, int] = {1: 0, 2: 0}
 
     async def _async_update_data(self):
         """Fetch data from API endpoint."""
         try:
-            async with asyncio.timeout(10):
-                self._values = await self.api.values()
-                self._sysInfo = await self.api.system_info()
+            async with self._api_lock:
+                async with asyncio.timeout(10):
+                    self._values = await self.api.values()
+                    self._sysInfo = await self.api.system_info()
                 self._mapOutlets()
+                self._sync_selected_outlet_state()
                 return {"values": self._values, "sysInfo": self._sysInfo}
         except (KohlerError, OSError) as err:
             raise UpdateFailed(f"Error communicating with Kohler API: {err}") from err
@@ -174,6 +196,193 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
 
         return outlets
 
+    @staticmethod
+    def _decode_outlet_state(outlet_state: int) -> set[int]:
+        """Convert a Kohler outlet integer like 124 into outlet numbers."""
+        if outlet_state == 0:
+            return set()
+        return {int(outlet) for outlet in str(outlet_state)}
+
+    @staticmethod
+    def _encode_outlet_state(outlets: set[int]) -> int:
+        """Convert outlet numbers into the Kohler integer payload format."""
+        if not outlets:
+            return 0
+        return int("".join(str(outlet) for outlet in sorted(outlets)))
+
+    def _current_outlet_state(self, valve: int) -> int:
+        """Return the currently open outlets in Kohler payload format."""
+        return int(self.getOpenValveOutlets(valve) or 0)
+
+    def _default_outlet_state(self, valve: int) -> int:
+        """Return the controller's configured default control outlet."""
+        key = "def_control_outlet" if valve == 1 else "v2_def_control_outlet"
+        outlet_count = int(self.getValue(f"valve{valve}PortsAvailable", 0))
+        default_outlet = self.getValue(key)
+
+        try:
+            outlet = int(default_outlet)
+        except TypeError, ValueError:
+            return 0
+
+        if outlet_count < 1 or outlet < 1 or outlet > outlet_count:
+            return 0
+        return outlet
+
+    def _sync_selected_outlet_state(self) -> None:
+        """Keep the remembered off-state outlet selection in sync."""
+        if self.isShowerOn():
+            self._selected_outlet_state[1] = self._current_outlet_state(1)
+            self._selected_outlet_state[2] = self._current_outlet_state(2)
+            return
+
+        for valve in range(1, 3):
+            if self._selected_outlet_state.get(valve, 0) == 0:
+                self._selected_outlet_state[valve] = self._default_outlet_state(valve)
+
+    def _desired_quick_shower_state(self) -> QuickShowerState:
+        """Return the last queued state, live state, or off-state selection."""
+        if self._pending_quick_shower is not None:
+            return QuickShowerState(
+                valve1_outlet=self._pending_quick_shower.valve1_outlet,
+                valve2_outlet=self._pending_quick_shower.valve2_outlet,
+                temperature=self._pending_quick_shower.temperature,
+            )
+
+        if self.isShowerOn():
+            valve1_outlet = self._current_outlet_state(1)
+            valve2_outlet = self._current_outlet_state(2)
+        else:
+            valve1_outlet = self._selected_outlet_state.get(
+                1, self._default_outlet_state(1)
+            )
+            valve2_outlet = self._selected_outlet_state.get(
+                2, self._default_outlet_state(2)
+            )
+
+        return QuickShowerState(
+            valve1_outlet=valve1_outlet,
+            valve2_outlet=valve2_outlet,
+            temperature=int(self.getTargetTemperature() or 100),
+        )
+
+    @staticmethod
+    def _with_outlet_state(
+        outlet_state: int,
+        outlet_id: int,
+        opened: bool,
+    ) -> int:
+        """Update an outlet payload to reflect a single outlet change."""
+        outlets = KohlerDataUpdateCoordinator._decode_outlet_state(outlet_state)
+        if opened:
+            outlets.add(outlet_id)
+        else:
+            outlets.discard(outlet_id)
+        return KohlerDataUpdateCoordinator._encode_outlet_state(outlets)
+
+    def _clear_pending_quick_shower(self, err: Exception | None = None) -> None:
+        """Clear queued quick shower work and resolve all pending callers."""
+        self._pending_quick_shower = None
+        waiters = self._pending_quick_shower_waiters
+        self._pending_quick_shower_waiters = []
+        for waiter in waiters:
+            if waiter.done():
+                continue
+            if err is None:
+                waiter.set_result(None)
+            else:
+                waiter.set_exception(err)
+
+    async def _async_send_quick_shower(self, state: QuickShowerState) -> None:
+        """Send the latest coalesced quick shower payload."""
+        try:
+            async with self._api_lock:
+                async with asyncio.timeout(10.0):
+                    await self.api.quick_shower(
+                        valve_num=1,
+                        valve1_outlet=state.valve1_outlet,
+                        valve1_temp=state.temperature,
+                        valve2_outlet=state.valve2_outlet,
+                        valve2_temp=state.temperature,
+                    )
+        except asyncio.TimeoutError as err:
+            raise HomeAssistantError(
+                f"Timeout communicating with Kohler API: {err}"
+            ) from err
+        except KohlerError as err:
+            raise HomeAssistantError(
+                f"Error communicating with Kohler API: {err}"
+            ) from err
+        except OSError as err:
+            raise HomeAssistantError(
+                f"Network error communicating with Kohler API: {err}"
+            ) from err
+
+    async def _async_process_pending_quick_shower(self) -> None:
+        """Serialize and debounce quick shower updates."""
+        while True:
+            await asyncio.sleep(QUICK_SHOWER_DEBOUNCE_SECONDS)
+
+            state = self._pending_quick_shower
+            waiters = self._pending_quick_shower_waiters
+            self._pending_quick_shower = None
+            self._pending_quick_shower_waiters = []
+
+            if state is None:
+                return
+
+            try:
+                await self._async_send_quick_shower(state)
+            except Exception as err:
+                for waiter in waiters:
+                    if not waiter.done():
+                        waiter.set_exception(err)
+                self._clear_pending_quick_shower(err)
+                return
+
+            for waiter in waiters:
+                if not waiter.done():
+                    waiter.set_result(None)
+
+            if self._pending_quick_shower is None:
+                return
+
+    async def _async_queue_quick_shower(self, state: QuickShowerState) -> None:
+        """Queue a quick shower update and coalesce rapid successive changes."""
+        self._pending_quick_shower = state
+        waiter = asyncio.get_running_loop().create_future()
+        self._pending_quick_shower_waiters.append(waiter)
+
+        if (
+            self._pending_quick_shower_task is None
+            or self._pending_quick_shower_task.done()
+        ):
+            self._pending_quick_shower_task = asyncio.create_task(
+                self._async_process_pending_quick_shower()
+            )
+
+        await waiter
+
+    async def async_request_post_command_refresh(
+        self, delay: float = POST_COMMAND_REFRESH_DELAY_SECONDS
+    ) -> None:
+        """Coalesce command-triggered refreshes into one delayed poll."""
+
+        async def _delayed_refresh() -> None:
+            await asyncio.sleep(delay)
+            await self.async_request_refresh()
+
+        task = self._post_command_refresh_task
+        if task is None or task.done():
+            task = asyncio.create_task(_delayed_refresh())
+            self._post_command_refresh_task = task
+
+        try:
+            await asyncio.shield(task)
+        finally:
+            if self._post_command_refresh_task is task and task.done():
+                self._post_command_refresh_task = None
+
     def genValveOutletOpen(self, valve: int, outletOn: int):
         outlet_count = int(self.getValue(f"valve{valve}PortsAvailable", 0))
         if outlet_count < 1:
@@ -204,11 +413,13 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
     @api_command
     async def stop_user(self):
         """Stop arbitrary user profile operations."""
+        self._clear_pending_quick_shower()
         await self.api.stop_user()
 
     @api_command
     async def start_user(self, user_id: int):
         """Start a quick shower via a specified user profile."""
+        self._clear_pending_quick_shower()
         await self.api.start_user(user_id)
 
     def isValveInstalled(self, valve: int) -> bool:
@@ -359,115 +570,86 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             return fallback if fallback is not None else self.getValue("def_temp")
         return max(temps)
 
-    @api_command
     async def setTargetTemperature(self, temperature):
         _LOGGER.debug("setTargetTemperature %s", temperature)
         self._target_temperature = float(temperature)
 
         if self.isShowerOn():
-            valve1Outlets = self.getOpenValveOutlets(1) or 0
-            valve2Outlets = self.getOpenValveOutlets(2) or 0
-
-            await self.api.quick_shower(
-                valve_num=1,
-                valve1_outlet=int(valve1Outlets),
-                valve1_temp=int(temperature),
-                valve2_outlet=int(valve2Outlets),
-                valve2_temp=int(temperature),
-            )
-            await self.api.quick_shower(
-                valve_num=2,
-                valve1_outlet=int(valve1Outlets),
-                valve1_temp=int(temperature),
-                valve2_outlet=int(valve2Outlets),
-                valve2_temp=int(temperature),
-            )
+            state = self._desired_quick_shower_state()
+            state.temperature = int(temperature)
+            await self._async_queue_quick_shower(state)
 
     def isShowerOn(self) -> bool:
         return self.isValveOn(1) or self.isValveOn(2)
 
-    @api_command
     async def turnOnShower(self, temp=None):
         _LOGGER.debug("turnOnShower %s", temp)
-        valve1Outlets = self.getInstalledValveOutlets(1)
-        valve2Outlets = self.getInstalledValveOutlets(2)
         if temp is None:
             temp = self.getTargetTemperature() or 100
 
-        await self.api.quick_shower(
-            valve_num=1,
-            valve1_outlet=int(valve1Outlets),
-            valve1_temp=int(temp),
-            valve2_outlet=int(valve2Outlets),
-            valve2_temp=int(temp),
-        )
+        state = self._desired_quick_shower_state()
+        if state.valve1_outlet == 0 and state.valve2_outlet == 0:
+            state.valve1_outlet = self._default_outlet_state(1)
+            state.valve2_outlet = self._default_outlet_state(2)
+
+        self._target_temperature = float(temp)
+        state.temperature = int(temp)
+        self._selected_outlet_state[1] = state.valve1_outlet
+        self._selected_outlet_state[2] = state.valve2_outlet
+        await self._async_queue_quick_shower(state)
 
     @api_command
     async def turnOffShower(self):
         _LOGGER.debug("turnOffShower")
+        if self.isShowerOn():
+            self._selected_outlet_state[1] = self._current_outlet_state(1)
+            self._selected_outlet_state[2] = self._current_outlet_state(2)
+        self._clear_pending_quick_shower()
         await self.api.stop_shower()
 
-    @api_command
     async def openOutlet(self, valveId, outletId):
         _LOGGER.debug("openOutlet valveId=%s outletId=%s", valveId, outletId)
-        valve1Outlets = (
-            self.genValveOutletOpen(1, outletId)
-            if valveId == 1
-            else self.getOpenValveOutlets(1)
-        )
-        valve2Outlets = (
-            self.genValveOutletOpen(2, outletId)
-            if valveId == 2
-            else self.getOpenValveOutlets(2)
-        )
+        if self.isShowerOn():
+            state = self._desired_quick_shower_state()
+        else:
+            state = QuickShowerState(
+                valve1_outlet=0,
+                valve2_outlet=0,
+                temperature=int(self.getTargetTemperature() or 100),
+            )
 
-        temp = self.getTargetTemperature() or 100
+        if valveId == 1:
+            state.valve1_outlet = self._with_outlet_state(
+                state.valve1_outlet, outletId, True
+            )
+        else:
+            state.valve2_outlet = self._with_outlet_state(
+                state.valve2_outlet, outletId, True
+            )
 
-        await self.api.quick_shower(
-            valve_num=1,
-            valve1_outlet=int(valve1Outlets or 0),
-            valve1_temp=int(temp),
-            valve2_outlet=int(valve2Outlets or 0),
-            valve2_temp=int(temp),
-        )
-        await self.api.quick_shower(
-            valve_num=2,
-            valve1_outlet=int(valve1Outlets or 0),
-            valve1_temp=int(temp),
-            valve2_outlet=int(valve2Outlets or 0),
-            valve2_temp=int(temp),
-        )
+        self._selected_outlet_state[1] = state.valve1_outlet
+        self._selected_outlet_state[2] = state.valve2_outlet
+        await self._async_queue_quick_shower(state)
 
-    @api_command
     async def closeOutlet(self, valveId, outletId):
         _LOGGER.debug("closeOutlet valveId=%s outletId=%s", valveId, outletId)
-        valve1Outlets = (
-            self.genValveOutletClosed(1, outletId)
-            if valveId == 1
-            else self.getOpenValveOutlets(1)
-        )
-        valve2Outlets = (
-            self.genValveOutletClosed(2, outletId)
-            if valveId == 2
-            else self.getOpenValveOutlets(2)
-        )
+        state = self._desired_quick_shower_state()
+        if valveId == 1:
+            state.valve1_outlet = self._with_outlet_state(
+                state.valve1_outlet, outletId, False
+            )
+        else:
+            state.valve2_outlet = self._with_outlet_state(
+                state.valve2_outlet, outletId, False
+            )
 
-        temp = self.getTargetTemperature() or 100
+        self._selected_outlet_state[1] = state.valve1_outlet
+        self._selected_outlet_state[2] = state.valve2_outlet
 
-        await self.api.quick_shower(
-            valve_num=1,
-            valve1_outlet=int(valve1Outlets or 0),
-            valve1_temp=int(temp),
-            valve2_outlet=int(valve2Outlets or 0),
-            valve2_temp=int(temp),
-        )
-        await self.api.quick_shower(
-            valve_num=2,
-            valve1_outlet=int(valve1Outlets or 0),
-            valve1_temp=int(temp),
-            valve2_outlet=int(valve2Outlets or 0),
-            valve2_temp=int(temp),
-        )
+        if not self.isShowerOn():
+            return
+
+        await self._async_queue_quick_shower(state)
 
     @api_command
     async def steam_on(self, temp=110, time=15):

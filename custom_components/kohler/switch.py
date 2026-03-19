@@ -68,9 +68,9 @@ class KohlerSteamSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs):
         """Turn Steam on."""
         await self.coordinator.steam_on(temp=110, time=15)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn Steam off."""
         await self.coordinator.steam_off()
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()

@@ -82,12 +82,12 @@ class KohlerLight(CoordinatorEntity, LightEntity):
         brightness = kwargs.get(ATTR_BRIGHTNESS, self.brightness or 255)
         intensity = self.to_kohler_level(brightness)
         await self.coordinator.light_on(self._light_id, intensity)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Instruct the light to turn off."""
         await self.coordinator.light_off(self._light_id)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
 
     def to_kohler_level(self, level):
         """Convert the given Home Assistant light level (0-255) to Kohler (0-100)."""

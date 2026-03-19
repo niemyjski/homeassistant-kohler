@@ -83,4 +83,4 @@ class KohlerUserPresetSelect(CoordinatorEntity, SelectEntity):
             )
             await self.coordinator.start_user(int(user_id))
 
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_post_command_refresh()
