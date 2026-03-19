@@ -9,7 +9,7 @@ description = "Home Assistant Kohler Integration"
 authors = [{name = "Blake Niemyjski"}]
 requires-python = ">=3.14"
 dependencies = [
-    "kohler>=0.1.0",
+    "kohler>=0.1.1",
 ]
 
 [tool.pytest.ini_options]
