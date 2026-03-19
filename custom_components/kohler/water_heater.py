@@ -1,4 +1,4 @@
-"""Switches kohler water heater"""
+"""Kohler Water Heater Integration"""
 
 from homeassistant.components.water_heater import (
     WaterHeaterEntity,
@@ -19,8 +19,8 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 
-from . import DATA_KOHLER, KohlerData
 from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from .coordinator import KohlerDataUpdateCoordinator
 
 SUPPORTED_FEATURES = (
     WaterHeaterEntityFeature.TARGET_TEMPERATURE
@@ -32,40 +32,42 @@ SUPPORT_WATER_HEATER = [STATE_ON, STATE_OFF]
 
 async def async_setup_entry(hass, config, add_entities):
     """Set up the Kohler platform."""
-    data: KohlerData = hass.data[DATA_KOHLER]
-    add_entities([KohlerWaterHeater(data)])
+    coordinator: KohlerDataUpdateCoordinator = hass.data[DOMAIN]
+    add_entities([KohlerWaterHeater(coordinator)])
 
 
 class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     """Representation of a Kohler Shower."""
 
-    def __init__(self, data: KohlerData):
-        """Initialize the shower device."""
-        super().__init__(data)
+    _attr_has_entity_name = True
 
-        self._name = "Kohler Shower"
-        self._data = data
+    def __init__(self, coordinator: KohlerDataUpdateCoordinator):
+        """Initialize the shower device."""
+        super().__init__(coordinator)
+
+        self.coordinator: KohlerDataUpdateCoordinator = coordinator
+        self._attr_name = "Shower"
         self._current_mode = None
         self._current_temperature = None
         self._unit_of_measurement = UnitOfTemperature.CELSIUS
 
-        self._id = self._data.macAddress() + "_waterheater"
+        self._id = self.coordinator.macAddress() + "_waterheater"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self._data.macAddress())},
+            identifiers={(DOMAIN, self.coordinator.macAddress())},
             manufacturer=MANUFACTURER,
-            configuration_url="http://" + data.getConf(CONF_HOST),
+            configuration_url="http://" + coordinator.getConf(CONF_HOST),
             name=DEFAULT_NAME,
             model=MODEL,
-            hw_version=self._data.firmwareVersion(),
-            sw_version=self._data.firmwareVersion(),
+            hw_version=self.coordinator.firmwareVersion(),
+            sw_version=self.coordinator.firmwareVersion(),
         )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._current_mode = STATE_ON if self._data.isShowerOn() else STATE_OFF
-        self._current_temperature = self._data.getCurrentTemperature()
-        self._unit_of_measurement = self._data.unitOfMeasurement()
+        self._current_mode = STATE_ON if self.coordinator.isShowerOn() else STATE_OFF
+        self._current_temperature = self.coordinator.getCurrentTemperature()
+        self._unit_of_measurement = self.coordinator.unitOfMeasurement()
 
         super()._handle_coordinator_update()
 
@@ -75,14 +77,14 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         return self._id
 
     @property
+    def suggested_object_id(self) -> str | None:
+        """Return a stable object ID for the shower water heater entity."""
+        return "kohler_shower"
+
+    @property
     def supported_features(self):
         """Return the list of supported features."""
         return SUPPORTED_FEATURES
-
-    @property
-    def name(self):
-        """Return the name of the water_heater device."""
-        return self._name
 
     @property
     def temperature_unit(self):
@@ -97,15 +99,13 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._data.getTargetTemperature()
+        return self.coordinator.getTargetTemperature()
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperatures."""
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is not None:
-            await self.hass.async_add_executor_job(
-                self._data.setTargetTemperature, temp
-            )
+            await self.coordinator.setTargetTemperature(temp)
 
         await self.coordinator.async_request_refresh()
 
@@ -117,6 +117,14 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     @property
     def max_temp(self):
         """Return the maximum temperature."""
+        temps = [
+            self.coordinator.getMaxTemperatureSetting(valve)
+            for valve in range(1, 3)
+            if self.coordinator.isValveInstalled(valve)
+        ]
+        values = [temp for temp in temps if temp is not None]
+        if values:
+            return max(values)
         return 45 if self._unit_of_measurement == UnitOfTemperature.CELSIUS else 113
 
     @property
@@ -137,13 +145,9 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     async def async_set_operation_mode(self, operation_mode):
         """Set operation mode."""
         if operation_mode == STATE_ON:
-            await self.hass.async_add_executor_job(
-                self._data.turnOnShower, self._data.getTargetTemperature()
-            )
+            await self.coordinator.turnOnShower(self.coordinator.getTargetTemperature())
         else:
-            await self.hass.async_add_executor_job(
-                self._data.turnOffShower, self._data.getTargetTemperature()
-            )
+            await self.coordinator.turnOffShower()
 
         await self.coordinator.async_request_refresh()
 
@@ -151,3 +155,16 @@ class KohlerWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     def icon(self):
         """Get the icon to use in the front end."""
         return "mdi:shower"
+
+    @property
+    def extra_state_attributes(self):
+        """Expose translated valve settings on the shower water heater."""
+        attributes = {"units": self.coordinator.getUnitsSetting()}
+        for valve in range(1, 3):
+            if not self.coordinator.isValveInstalled(valve):
+                continue
+            for key, value in self.coordinator.getValveSettingsAttributes(
+                valve
+            ).items():
+                attributes[f"valve_{valve}_{key}"] = value
+        return attributes

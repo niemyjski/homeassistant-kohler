@@ -1,48 +1,157 @@
-# homeassistant-kohler
+# Kohler for Home Assistant
 
-Kohler Integration for Home Assistant
+Local Home Assistant integration for Kohler DTV+ shower systems.
 
-> Any and all help is greatly apprecated. Just grab an issue and leave a comment if you have any questions!
+This project talks directly to the Kohler controller over your local network and exposes shower controls, outlet controls, diagnostics, and maintenance actions inside Home Assistant.
 
-Uses the [Kohler Python library](https://github.com/niemyjski/kohler-python) to get device data. Currently this only supports the DTV+ system.
-It would be sweet to add support at a future date for other devices like the smart mirrors (currently installed but not very smart) too ;) PR's are welcomed!
+## Status
 
-I initially [filed an issue](https://github.com/home-assistant/architecture/issues/74) for a shower device type to home assistant. I spent the weekend learning python (WIP), and decided to keep on hacking to try and get a network client that could talk to Kohler! This is my first python project but was a lot of fun getting this working over the course of a weekend.
+- Supported hardware: Kohler DTV+
+- Transport: local polling over HTTP
+- Home Assistant setup: config flow
+- HACS compatible: yes
 
-## Setup instructions
-
-1. Install via [HACS](https://github.com/hacs/integration) by adding this repository to the HACS configuration settings.
-2. Go to Settings -> Add Integration -> Search for Kohler
-3. Enter your host name and read the below waiver of liability
+This is an independent community project. It is not affiliated with or supported by Kohler or the Home Assistant project.
 
 ## Features
 
-- Control your shower with Home Assistant
-  - with Google Assistant, Alexa, and HomeKit!
-- Control shower lights
+- Primary shower control exposed through Home Assistant
+- Per-outlet valve entities with friendly names and mapped icons
+- Dynamic polling for faster updates while the shower is running
+- Active user preset selection
+- Light control for installed shower lights
+- Steam control when a steam module is installed
+- Maintenance buttons for time sync, massage toggle, update checks, and fault resets
+- Translated valve settings surfaced as entity attributes
+- Diagnostic entities for firmware, connection state, and calibration codes
+- Downloadable Home Assistant diagnostics that include controller and Konnect error logs
 
-## Waiver Of liability
+## Entities
 
-This agreement releases Blake Niemyjski from all liability relating to injuries or property damage that may occur while using this shower component (installing it, turning on water valves, reading device state, etc.). By accepting this agreement, I agree to hold Blake Niemyjski entirely free from any liability, including financial responsibility for injuries or property damage incurred, regardless of whether injuries are caused by negligence.
+Depending on installed hardware and configuration, the integration can create:
 
-I also acknowledge the risks involved in controlling water valves and devices. These include but are not limited to water damage, damage to home, damage to property, damage to devices, or death. I swear that I am participating voluntarily, and that all risks have been made clear to me. Additionally, I do not have any conditions that will increase my likelihood of experiencing injuries while engaging in this activity.
+- `climate` and `water_heater` shower control entities
+- `valve` entities for each mapped shower outlet
+- `light` entities for installed light modules
+- `switch` entities for steam
+- `select` entities for active user presets
+- `button` entities for maintenance actions
+- `sensor` and `binary_sensor` entities for diagnostics and device state
 
-By accepting the terms (by setting the `Accept Liability Terms` checkbox) I forfeit all right to bring a suit against Blake Niemyjski or any contributors for any reason. In return, I will receive the possibility to interact with your Kohler devices. I will also make every effort to obey all safety precautions as listed in the owner manuals, listed here and anything else not covered (I am accepting all responsibilities). I will ask for clarification when needed.
+## Installation
 
-## Coming Soon
+### HACS
 
-**NOTE** This library is very early stages and I plan on adding support for much more. PRs are welcomed!
+1. Open HACS.
+2. Add this repository as a custom repository.
+3. Choose the `Integration` category.
+4. Install `Kohler`.
+5. Restart Home Assistant.
 
-- [Python Lib] [Try and get this nasty hack fixed](https://gist.github.com/niemyjski/6ba88dcdca7e76172c58530bac66eada)
-- [DTV+] Add media player support (already supported by python library)
-- [DTV+] Add Steam support (already supported by python library)
-- [Mirrors] Add support for mirror lights and sensors (already installed in my house).
-- [Toilet] If someone wants to send me a smart toilet I'll support that too :-)
+### Manual installation
+
+1. Copy `custom_components/kohler` into your Home Assistant `custom_components` directory.
+2. Restart Home Assistant.
+
+## Configuration
+
+1. In Home Assistant, go to `Settings > Devices & services`.
+2. Click `Add Integration`.
+3. Search for `Kohler`.
+4. Enter the IP address or hostname of your Kohler DTV+ controller.
+5. Accept the liability terms to finish setup.
+
+## What Gets Exposed
+
+### Primary shower control
+
+The integration exposes the shower as both a `climate` entity and a `water_heater` entity for broader dashboard and voice-assistant compatibility.
+
+### Outlet controls
+
+Each installed outlet is exposed as a Home Assistant `valve` entity. The integration uses the Kohler outlet mapping information to assign friendlier names and icons when possible, for example:
+
+- `Shower Head 1`
+- `Shower Head 2`
+- `Hand Shower`
+- `Body Sprayer`
+
+Valve and outlet numbers are still available as attributes for automations and debugging.
+
+### Device settings and diagnostics
+
+The integration surfaces translated valve settings and diagnostics such as:
+
+- Default temperature
+- Max temperature
+- Cold water timeout
+- Auto purge duration
+- Max run time
+- Connection diagnostics for interfaces, controller, valves, and optional modules
+- Six-port calibration codes
+- Firmware versions
+
+Home Assistant diagnostics downloads also include:
+
+- Current values payload
+- Current system info payload
+- Outlet mapping state
+- Controller error log
+- Konnect error log
+
+## Safety
+
+This integration can control live water hardware. Before enabling it:
+
+- Make sure you understand which outlets and valves are connected.
+- Be careful with automations, voice assistants, and remote access.
+- Test changes while you are present.
+- Treat this integration as capable of turning on water.
+
+## Waiver of Liability
+
+This integration can read device state and send live commands to plumbing hardware, including commands that may start water flow. By installing, configuring, or using this project, you accept responsibility for the risks involved.
+
+The software is provided as-is, without warranty of any kind. The maintainers and contributors are not liable for injury, water damage, property damage, equipment damage, data loss, downtime, or any other loss that may result from using this integration.
+
+By accepting the liability terms during setup, you acknowledge that:
+
+- you understand this integration can control real water hardware
+- you are responsible for testing and operating it safely
+- you accept the risk of damage or injury that may result from its use
+- you will not hold the maintainers or contributors liable for resulting harm or loss
 
 ## Development
 
+Create a virtual environment and install the test dependencies:
+
 ```console
-py -m venv env
-python -m ensurepip
-pip3 install -r requirements.txt
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.test.txt
 ```
+
+Run the local checks:
+
+```console
+ruff check custom_components tests
+ruff format --check custom_components tests
+pytest
+```
+
+## Troubleshooting
+
+- Confirm the controller is reachable from the Home Assistant host.
+- Verify the Kohler web interface responds at the configured IP address.
+- Use the integration diagnostics download in Home Assistant for a support bundle.
+- Check the exported controller and Konnect error logs when diagnosing device-side faults.
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+If you are adding support for more Kohler hardware, improving diagnostics, or tightening entity behavior, please include:
+
+- a short summary of the hardware or behavior being added
+- local test results
+- any screenshots or Home Assistant entity examples that help explain the change

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kohler-ha"
+version = "0.5.0"
+description = "Home Assistant Kohler Integration"
+authors = [{name = "Blake Niemyjski"}]
+requires-python = ">=3.14"
+dependencies = [
+    "kohler>=0.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.mypy]
+python_version = "3.14"
+strict = false
+explicit_package_bases = true
