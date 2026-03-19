@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kohler-ha"
-version = "0.5.0"
+version = "0.5.1"
 description = "Home Assistant Kohler Integration"
 authors = [{name = "Blake Niemyjski"}]
 requires-python = ">=3.14"
