@@ -4,20 +4,20 @@ requires-python = ">=3.14"
 
 [[package]]
 name = "kohler"
-version = "0.1.0"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e0/aa/5059bdd3c42ff3c9f25329c64b80a151edd9080a7f49c1e0bc32981234b4/kohler-0.1.0.tar.gz", hash = "sha256:08c01e38974aa5a0e943298aabcab33ae54967e0711b226dd1c6e61d602b4f6a", size = 12994, upload-time = "2026-03-19T00:15:35.258Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/22/757eaf9700dacbb981def15fae3fb07302481500081214806dbca4a35544/kohler-0.1.1.tar.gz", hash = "sha256:5b8946225c4a11cc7ed8b92c911dbffccd3eddbef1a3b57e9e4f21bee5dbb039", size = 15152, upload-time = "2026-03-19T17:54:40.093Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/8d/fd23af6aa9928996cd0457bf402b1123e6086f90447125e367d57ff37820/kohler-0.1.0-py3-none-any.whl", hash = "sha256:29368c256c5eb7d865871c177ac5b96562516f2c5f7f740c5a44d99541b18217", size = 10433, upload-time = "2026-03-19T00:15:34.194Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/ba/760094d9ed564ee6943bc81664f5ee6dd4f3b5e72f1828d00f349e1a9495/kohler-0.1.1-py3-none-any.whl", hash = "sha256:3831081f8a41c0155fe0101725666240b6985b8eebfa2b0d0179017495f570ca", size = 11747, upload-time = "2026-03-19T17:54:38.541Z" },
 ]
 
 [[package]]
 name = "kohler-ha"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "kohler" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "kohler", specifier = ">=0.1.0" }]
+requires-dist = [{ name = "kohler", specifier = ">=0.1.1" }]

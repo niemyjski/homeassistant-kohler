@@ -358,3 +358,17 @@ def _translate_option(value: object, options: dict[int, str]) -> str | None:
     if key is None:
         return None
     return options.get(key, str(value))
+
+
+def normalize_mac_address(value: object) -> str | None:
+    """Normalize a MAC address for config-entry and device-registry use."""
+    if not isinstance(value, str):
+        return None
+
+    cleaned = value.strip().lower().replace("-", "").replace(":", "")
+    if len(cleaned) != 12:
+        return None
+    if any(char not in "0123456789abcdef" for char in cleaned):
+        return None
+
+    return ":".join(cleaned[index : index + 2] for index in range(0, 12, 2))
