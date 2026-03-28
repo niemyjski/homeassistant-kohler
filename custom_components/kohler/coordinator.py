@@ -104,6 +104,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             async with self._api_lock:
                 async with asyncio.timeout(10):
                     self._values = await self.api.values()
+                async with asyncio.timeout(10):
                     self._sysInfo = await self.api.system_info()
                 self._mapOutlets()
                 self._sync_selected_outlet_state()
