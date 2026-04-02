@@ -441,7 +441,8 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         return self.getSystemInfo(f"valve{valve}outlet{mapped_outlet}", False)
 
     def isValveOn(self, valve: int) -> bool:
-        return self.getSystemInfo(f"valve{valve}_Currentstatus", "Off") == "On"
+        status = self.getSystemInfo(f"valve{valve}_Currentstatus", "Off")
+        return status in ("On", "PurgeActive")
 
     def getDeviceTime(self) -> str | None:
         """Return the configured device time string."""
