@@ -1,4 +1,4 @@
 idna>=3.15
-homeassistant>=2026.7.1
+homeassistant>=2026.8.2,<2026.9.0
 pygments>=2.20.0
 kohler>=0.1.1

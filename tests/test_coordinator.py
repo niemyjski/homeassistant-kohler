@@ -144,6 +144,7 @@ async def test_turn_off_shower_clears_pending_quick_shower(monkeypatch):
 
     coordinator.api.stop_shower.assert_awaited_once()
     coordinator.api.quick_shower.assert_not_awaited()
+    assert coordinator._pending_quick_shower_task is None
 
 
 @pytest.mark.asyncio
