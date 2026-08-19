@@ -227,6 +227,7 @@ def _async_update_outlet_entity_names(
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        if DATA_KOHLER in hass.data:
+        if coordinator := hass.data.get(DATA_KOHLER):
+            await coordinator.async_shutdown()
             hass.data.pop(DATA_KOHLER)
     return unload_ok

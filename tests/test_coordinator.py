@@ -6,8 +6,11 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.kohler import async_unload_entry
 from custom_components.kohler import coordinator as coordinator_module
+from custom_components.kohler.const import DATA_KOHLER, DOMAIN
 from custom_components.kohler.coordinator import KohlerDataUpdateCoordinator
 
 
@@ -145,6 +148,30 @@ async def test_turn_off_shower_clears_pending_quick_shower(monkeypatch):
     coordinator.api.stop_shower.assert_awaited_once()
     coordinator.api.quick_shower.assert_not_awaited()
     assert coordinator._pending_quick_shower_task is None
+
+
+@pytest.mark.asyncio
+async def test_unload_cancels_pending_quick_shower(hass, monkeypatch):
+    """Unloading the config entry should not leave the debounce task running."""
+    monkeypatch.setattr(coordinator_module, "QUICK_SHOWER_DEBOUNCE_SECONDS", 0.05)
+    coordinator = _build_command_test_coordinator()
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    hass.data[DATA_KOHLER] = coordinator
+    monkeypatch.setattr(
+        hass.config_entries,
+        "async_unload_platforms",
+        AsyncMock(return_value=True),
+    )
+
+    outlet_task = asyncio.create_task(coordinator.openOutlet(1, 1))
+    await asyncio.sleep(0)
+    assert await async_unload_entry(hass, entry)
+    await outlet_task
+
+    coordinator.api.quick_shower.assert_not_awaited()
+    assert coordinator._pending_quick_shower_task is None
+    assert DATA_KOHLER not in hass.data
 
 
 @pytest.mark.asyncio

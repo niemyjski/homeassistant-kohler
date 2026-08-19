@@ -307,6 +307,10 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         except asyncio.CancelledError:
             pass
 
+    async def async_shutdown(self) -> None:
+        """Cancel pending quick shower work during config entry shutdown."""
+        await self._async_clear_pending_quick_shower()
+
     async def _async_send_quick_shower(self, state: QuickShowerState) -> None:
         """Send the latest coalesced quick shower payload."""
         try:
