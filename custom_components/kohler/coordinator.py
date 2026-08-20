@@ -281,8 +281,10 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             outlets.discard(outlet_id)
         return KohlerDataUpdateCoordinator._encode_outlet_state(outlets)
 
-    def _clear_pending_quick_shower(self, err: Exception | None = None) -> None:
-        """Clear queued quick shower work and resolve all pending callers."""
+    async def _async_clear_pending_quick_shower(
+        self, err: Exception | None = None
+    ) -> None:
+        """Cancel queued quick shower work and resolve all pending callers."""
         self._pending_quick_shower = None
         waiters = self._pending_quick_shower_waiters
         self._pending_quick_shower_waiters = []
@@ -293,6 +295,21 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 waiter.set_result(None)
             else:
                 waiter.set_exception(err)
+
+        task = self._pending_quick_shower_task
+        self._pending_quick_shower_task = None
+        if task is None or task is asyncio.current_task() or task.done():
+            return
+
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    async def async_shutdown(self) -> None:
+        """Cancel pending quick shower work during config entry shutdown."""
+        await self._async_clear_pending_quick_shower()
 
     async def _async_send_quick_shower(self, state: QuickShowerState) -> None:
         """Send the latest coalesced quick shower payload."""
@@ -338,7 +355,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 for waiter in waiters:
                     if not waiter.done():
                         waiter.set_exception(err)
-                self._clear_pending_quick_shower(err)
+                await self._async_clear_pending_quick_shower(err)
                 return
 
             for waiter in waiters:
@@ -414,13 +431,13 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
     @api_command
     async def stop_user(self):
         """Stop arbitrary user profile operations."""
-        self._clear_pending_quick_shower()
+        await self._async_clear_pending_quick_shower()
         await self.api.stop_user()
 
     @api_command
     async def start_user(self, user_id: int):
         """Start a quick shower via a specified user profile."""
-        self._clear_pending_quick_shower()
+        await self._async_clear_pending_quick_shower()
         await self.api.start_user(user_id)
 
     def isValveInstalled(self, valve: int) -> bool:
@@ -606,7 +623,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         if self.isShowerOn():
             self._selected_outlet_state[1] = self._current_outlet_state(1)
             self._selected_outlet_state[2] = self._current_outlet_state(2)
-        self._clear_pending_quick_shower()
+        await self._async_clear_pending_quick_shower()
         await self.api.stop_shower()
 
     async def openOutlet(self, valveId, outletId):

@@ -1,9 +1,9 @@
+-r requirements.txt
+
+coverage
+mypy
 pytest
-pytest-homeassistant-custom-component
 pytest-asyncio
 pytest-cov
-coverage
-ruff
-mypy
-homeassistant
-kohler>=0.1.1
+pytest-homeassistant-custom-component
+ruff<0.16.0
