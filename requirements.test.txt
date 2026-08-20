@@ -1,9 +1,9 @@
 -r requirements.txt
 
-coverage>=7.14.1
-mypy>=2.1.0
+coverage>=7.15.2
+mypy>=2.3.1
 pytest>=9.0.3
 pytest-asyncio>=1.4.0
 pytest-cov>=7.1.0
-pytest-homeassistant-custom-component>=0.13.345
-ruff>=0.15.20,<0.16.0
+pytest-homeassistant-custom-component>=0.13.356
+ruff>=0.15.22,<0.16.0
