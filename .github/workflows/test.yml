@@ -10,9 +10,9 @@ jobs:
     name: Run tests
     steps:
       - name: Check out code
-        uses: "actions/checkout@v7.0.1"
+        uses: "actions/checkout@v7"
       - name: Set up Python
-        uses: "actions/setup-python@v7.0.0"
+        uses: "actions/setup-python@v7"
         with:
           python-version: '3.14'
       - name: Install dependencies
@@ -23,6 +23,6 @@ jobs:
         run: |
           pytest --cov=custom_components/kohler tests
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v7.0.0
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

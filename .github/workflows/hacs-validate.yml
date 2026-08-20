@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: "actions/checkout@v7.0.1"
+        uses: "actions/checkout@v7"
       - name: validation
-        uses: home-assistant/actions/hassfest@a7c616ce81ccda50150bf1595786c71b1883fabb
+        uses: home-assistant/actions/hassfest@master
 
   validate-hacs:
     name: HACS validation
     runs-on: "ubuntu-latest"
     steps:
       - name: checkout
-        uses: "actions/checkout@v7.0.1"
+        uses: "actions/checkout@v7"
       - name: validation
         uses: "hacs/action@22.5.0"
         with:
