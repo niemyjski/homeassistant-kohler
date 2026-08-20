@@ -24,6 +24,6 @@ jobs:
       - name: checkout
         uses: "actions/checkout@v7"
       - name: validation
-        uses: "hacs/action@22.5.0"
+        uses: "hacs/action@main"
         with:
           category: "integration"
