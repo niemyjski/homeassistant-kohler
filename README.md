@@ -167,11 +167,13 @@ If you are adding support for more Kohler hardware, improving diagnostics, or ti
 ### Automatic clock synchronization
 
 Home Assistant maintains the shower clock automatically using its configured
-timezone. The integration checks at startup, hourly, and when HA's UTC offset
-changes. It corrects differences over 90 seconds and disables the controller's
+timezone. This is enabled by default for both new and existing configurations;
+no migration or setup is needed. It compares the clock data already received by
+normal polling, corrects differences over 90 seconds, and disables the controller's
 separate daylight-saving adjustment so seasonal changes are applied only once.
-Corrections wait until the shower and steam are off. Failed corrections retry no
-more than once an hour and do not make the shower entities unavailable.
+Corrections wait until the shower and steam are off and are limited to once an
+hour, including failed attempts. Clock failures do not make shower entities
+unavailable. A timezone or seasonal change is handled on the next eligible poll.
 
 Clock readings and synchronization diagnostics remain internal: no ticking time
 sensor, changing timestamp attributes, or automatic button presses are added to

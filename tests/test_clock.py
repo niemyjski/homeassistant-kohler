@@ -180,7 +180,7 @@ async def test_disabled_and_busy_checks_defer_until_idle(now):
         ("2026-11-01T01:59:00-05:00", "2026-11-01T01:00:00-06:00"),
     ],
 )
-async def test_offset_change_checks_before_hourly_deadline(before, after):
+async def test_offset_change_is_detected_by_normal_poll(before, after):
     old = datetime.fromisoformat(before).astimezone(CHICAGO)
     new = datetime.fromisoformat(after).astimezone(CHICAGO)
     api = AsyncMock()
@@ -190,7 +190,9 @@ async def test_offset_change_checks_before_hourly_deadline(before, after):
     api.save_dt.assert_awaited_once()
 
 
-async def test_hourly_checks_and_reenable(now, monkeypatch):
+async def test_successful_corrections_are_rate_limited_even_after_reenable(
+    now, monkeypatch
+):
     tick = 100.0
     monkeypatch.setattr(clock_module.time, "monotonic", lambda: tick)
     api = AsyncMock()
@@ -198,12 +200,11 @@ async def test_hourly_checks_and_reenable(now, monkeypatch):
     await clock.async_check(values(now), now, enabled=True, idle=True)
     raw = values(now, daylight=True)
     await clock.async_check(raw, now, enabled=True, idle=True)
-    assert not api.mock_calls
-    tick += 3600
-    await clock.async_check(raw, now, enabled=True, idle=True)
     api.save_dt.assert_awaited_once()
     await clock.async_check(values(now), now, enabled=False, idle=True)
     assert clock.diagnostics["status"] == "synchronized"
+    await clock.async_check(raw, now, enabled=True, idle=True)
+    api.save_dt.assert_awaited_once()
     tick += 3600
     await clock.async_check(raw, now, enabled=True, idle=True)
     assert api.save_dt.await_count == 2
@@ -397,3 +398,17 @@ async def test_manual_invalid_reading_is_home_assistant_error(hass, now):
     with pytest.raises(HomeAssistantError, match="Cannot interpret"):
         await coordinator.sync_time()
     api.save_variable.assert_not_awaited()
+
+
+async def test_existing_entry_without_option_defaults_to_enabled(hass, now):
+    """Existing entries need neither migration nor an options save to sync."""
+    api = AsyncMock()
+    api.values.return_value = values(now, daylight=True)
+    api.system_info.return_value = {}
+    entry = MockConfigEntry(domain=DOMAIN, options={})
+    coordinator = KohlerDataUpdateCoordinator(hass, api, entry)
+    coordinator._clock_now = lambda: now
+    await coordinator._async_update_data()
+    api.save_dt.assert_awaited_once()
+    assert coordinator.clock.diagnostics["automatic_sync_enabled"] is True
+    assert entry.options == {}

@@ -4,7 +4,7 @@ import asyncio
 import logging
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from kohler import Kohler, KohlerError
 
@@ -15,7 +15,7 @@ from .entity_helpers import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-CHECK_INTERVAL = 3600
+CORRECTION_INTERVAL = 3600
 MAX_DRIFT_SECONDS = 90
 DATE_TIME_SETTING_INDEX = 2
 DAYLIGHT_SETTING_INDEX = 3
@@ -86,38 +86,20 @@ class KohlerClock:
 
     def __init__(self, api: Kohler):
         self.api = api
-        self._next_check = 0.0
-        self._retry_after = 0.0
-        self._timezone: tuple[str, timedelta | None] | None = None
-        self._enabled = False
+        self._next_attempt = 0.0
         self._pending_verification = False
         self.diagnostics: dict[str, object] = {"status": "not_checked"}
 
     async def async_check(
         self, values: dict, now: datetime, *, enabled: bool, idle: bool
     ) -> None:
-        """Verify prior writes, then check hourly or when the timezone changes."""
-        tick = time.monotonic()
-        timezone = (str(now.tzinfo), now.utcoffset())
-        due = self._pending_verification or (
-            enabled
-            and (
-                not self._enabled
-                or timezone != self._timezone
-                or tick >= self._next_check
-            )
-        )
-        if not enabled:
-            self._enabled = False
+        """Compare existing poll data; rate-limit writes and verify them next poll."""
         self.diagnostics["automatic_sync_enabled"] = enabled
-        if not due:
+        # Verification is read-only, even if disabled or the shower has started.
+        if not self._pending_verification and (
+            not enabled or not idle or time.monotonic() < self._next_attempt
+        ):
             return
-        # Verification is read-only and may complete even if the shower starts.
-        if not self._pending_verification and (not idle or tick < self._retry_after):
-            return
-        self._enabled = enabled
-        self._timezone = timezone
-        self._next_check = tick + CHECK_INTERVAL
         try:
             device_time = parse_device_time(values, now)
             drift = device_time.timestamp() - now.timestamp()
@@ -132,10 +114,10 @@ class KohlerClock:
         self.diagnostics.update(
             checked_at=now.isoformat(), drift_seconds=round(drift, 1)
         )
+        in_sync = abs(drift) <= MAX_DRIFT_SECONDS and not daylight and offset_matches
         if self._pending_verification:
             self._pending_verification = False
-            if abs(drift) <= MAX_DRIFT_SECONDS and not daylight and offset_matches:
-                self._retry_after = 0.0
+            if in_sync:
                 self.diagnostics.update(
                     status="synchronized", verified_at=now.isoformat()
                 )
@@ -145,7 +127,7 @@ class KohlerClock:
                     "Kohler clock correction was not confirmed by the controller"
                 )
             return
-        if abs(drift) <= MAX_DRIFT_SECONDS and not daylight and offset_matches:
+        if in_sync:
             self.diagnostics["status"] = "in_sync"
             return
         try:
@@ -162,8 +144,7 @@ class KohlerClock:
         formatted = format_kohler_datetime(
             now, values.get("date_format"), values.get("time_format")
         )
-        self._retry_after = self._next_check = time.monotonic() + CHECK_INTERVAL
-        self._timezone = (str(now.tzinfo), now.utcoffset())
+        self._next_attempt = time.monotonic() + CORRECTION_INTERVAL
         self._pending_verification = False
         self.diagnostics.update(status="writing", attempted_at=now.isoformat())
         try:
