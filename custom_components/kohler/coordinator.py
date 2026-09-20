@@ -139,14 +139,13 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 self._poll_failures + 1, len(POLL_RETRY_INTERVALS)
             )
             retry_seconds = POLL_RETRY_INTERVALS[self._poll_failures - 1]
-            self.update_interval = timedelta(seconds=retry_seconds)
             # Exception messages from the SDK can contain raw response bodies.
             message = (
                 f"Kohler {endpoint} failed after {time.monotonic() - started:.1f}s "
                 f"({type(err).__name__}); next scheduled poll in {retry_seconds}s"
             )
             _LOGGER.debug(message)
-            raise UpdateFailed(message) from err
+            raise UpdateFailed(message, retry_after=retry_seconds) from None
 
     def _mapOutlets(self):
         """Map the outlets to the order on the UI."""

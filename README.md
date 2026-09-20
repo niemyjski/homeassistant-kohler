@@ -161,9 +161,10 @@ For intermittent availability, enable debug logging for `custom_components.kohle
 and `kohler` and capture two or three failures. Include the timestamps, controller
 firmware, integration version, and any local polling changes. Failure messages
 identify the endpoint, elapsed time, exception type, and next scheduled interval.
-Review logs for identifying details before sharing. Backoff reduces repeated
+The coordinator omits SDK exception bodies from its debug tracebacks, but the
+SDK can log response bodies independently. Review logs for identifying details
+before sharing. Backoff reduces repeated
 requests during failures; it does not establish or fix their underlying cause.
-
 
 - Confirm the controller is reachable from the Home Assistant host.
 - Verify the Kohler web interface responds at the configured IP address.
