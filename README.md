@@ -178,7 +178,11 @@ unavailable. A timezone or seasonal change is handled on the next eligible poll.
 Clock readings and synchronization diagnostics remain internal: no ticking time
 sensor, changing timestamp attributes, or automatic button presses are added to
 Home Assistant history. Download integration diagnostics to inspect the last
-check, measured difference, write attempt, and verified result.
+check, measured difference, write attempt, and verified result. The controller
+returns formatted text with a UTC offset, not a named timezone. Unsupported or
+incomplete readings skip automatic correction; the integration never guesses a
+missing offset. Manual sync can repair a malformed clock when its advertised
+date/time formats are valid and include an offset.
 
 Under **Settings → Devices & services → Kohler → Configure**, turn off
 **Automatically synchronize clock** to stop future automatic corrections. This

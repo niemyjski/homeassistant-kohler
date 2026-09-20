@@ -8,11 +8,7 @@ from datetime import datetime
 
 from kohler import Kohler, KohlerError
 
-from .entity_helpers import (
-    DEFAULT_DATE_FORMAT,
-    DEFAULT_TIME_FORMAT,
-    format_kohler_datetime,
-)
+from .entity_helpers import format_kohler_datetime
 
 _LOGGER = logging.getLogger(__name__)
 CORRECTION_INTERVAL = 3600
@@ -21,7 +17,7 @@ DATE_TIME_SETTING_INDEX = 2
 DAYLIGHT_SETTING_INDEX = 3
 
 
-def parse_device_time(values: dict, now: datetime) -> datetime:
+def parse_device_time(values: dict) -> datetime:
     """Read numeric Kohler UI formats, including one-letter AM/PM and offsets."""
     date_tokens = {"yy": "%Y", "y": "%y", "mm": "%m", "m": "%m", "dd": "%d", "d": "%d"}
     time_tokens = {
@@ -54,21 +50,30 @@ def parse_device_time(values: dict, now: datetime) -> datetime:
         return re.sub(r"([a-zA-Z])\1*", replace, fmt)
 
     fmt = (
-        convert(values.get("date_format") or DEFAULT_DATE_FORMAT, date_tokens)
+        convert(values.get("date_format"), date_tokens)
         + " "
-        + convert(values.get("time_format") or DEFAULT_TIME_FORMAT, time_tokens)
+        + convert(values.get("time_format"), time_tokens)
     )
+    # A comparison needs a complete date, clock, and explicit UTC offset.
+    # Never infer the controller's timezone or let strptime default missing fields.
+    if not (
+        ("%Y" in fmt or "%y" in fmt)
+        and all(token in fmt for token in ("%m", "%d", "%M", "%z"))
+        and ("%H" in fmt or ("%I" in fmt and "%p" in fmt))
+    ):
+        raise ValueError(
+            "Device clock must include a complete date, time, and UTC offset"
+        )
     value = values.get("time")
     if not isinstance(value, str):
         raise TypeError("Missing device clock")
     value = re.sub(
         r"\b([ap])\b", lambda m: m[1].upper() + "M", value, flags=re.IGNORECASE
     )
-    # Offset-bearing formats retain their device offset; others use HA local time.
-    parsed = datetime.strptime(value, fmt)  # noqa: DTZ007
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=now.tzinfo, fold=now.fold)
-    return parsed
+    try:
+        return datetime.strptime(value, fmt)  # noqa: DTZ007 - %z is required above
+    except re.PatternError as err:
+        raise ValueError("Invalid device clock format") from err
 
 
 def daylight_enabled(values: dict) -> bool:
@@ -101,7 +106,7 @@ class KohlerClock:
         ):
             return
         try:
-            device_time = parse_device_time(values, now)
+            device_time = parse_device_time(values)
             drift = device_time.timestamp() - now.timestamp()
             offset_matches = device_time.utcoffset() == now.utcoffset()
             daylight = daylight_enabled(values)
@@ -139,11 +144,12 @@ class KohlerClock:
     async def async_sync(self, values: dict, now: datetime) -> None:
         """Write HA local time with device DST off; require a later readback."""
         daylight = daylight_enabled(values)
-        # Validate formats before writing either setting.
-        parse_device_time(values, now)
         formatted = format_kohler_datetime(
             now, values.get("date_format"), values.get("time_format")
         )
+        # Validate the outgoing format, not the potentially broken old clock.
+        # This keeps manual sync usable for recovery without guessing formats.
+        parse_device_time({**values, "time": formatted})
         self._next_attempt = time.monotonic() + CORRECTION_INTERVAL
         self._pending_verification = False
         self.diagnostics.update(status="writing", attempted_at=now.isoformat())

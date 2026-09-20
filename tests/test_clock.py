@@ -42,7 +42,7 @@ def values(now, **changes):
         ("mm/dd/yy", "hh:mm T z"),
         ("dd/mm/yy", "HH:mm:ss Z"),
         ("mm-dd-y", "h:m tt z"),
-        ("yy-mm-dd", "HH:mm:ss"),
+        ("yy-mm-dd", "HH:mm:ss z"),
     ],
 )
 @pytest.mark.parametrize(
@@ -64,7 +64,7 @@ def test_clock_format_roundtrip(date_fmt, time_fmt, instant):
         time_format=time_fmt,
         time=format_kohler_datetime(local, date_fmt, time_fmt),
     )
-    assert parse_device_time(data, local).timestamp() == local.timestamp()
+    assert parse_device_time(data).timestamp() == local.timestamp()
 
 
 async def test_dst_disabled_before_clock_and_verified_from_device(now):
@@ -133,6 +133,9 @@ async def test_failed_writes_back_off_even_across_timezone_change(
         {"time": "02/30/2026 08:31 A -0500"},
         {"date_format": "MM d yy"},
         {"daylight": None},
+        {"date_format": None},
+        {"time_format": ""},
+        {"date_format": "mm/dd/yy mm"},
     ],
 )
 async def test_invalid_readings_never_write(now, changes):
@@ -390,9 +393,9 @@ async def test_installed_valve_must_be_confirmed_off(hass, now, status):
     api.save_dt.assert_not_awaited()
 
 
-async def test_manual_invalid_reading_is_home_assistant_error(hass, now):
+async def test_manual_invalid_format_is_home_assistant_error(hass, now):
     api = AsyncMock()
-    api.values.return_value = values(now, time=None)
+    api.values.return_value = values(now, time_format="HH:mm")
     api.system_info.return_value = {}
     coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
     with pytest.raises(HomeAssistantError, match="Cannot interpret"):
@@ -412,3 +415,57 @@ async def test_existing_entry_without_option_defaults_to_enabled(hass, now):
     api.save_dt.assert_awaited_once()
     assert coordinator.clock.diagnostics["automatic_sync_enabled"] is True
     assert entry.options == {}
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"time_format": "HH:mm:ss", "time": "09/20/2026 08:31:29"},
+        {"date_format": "mm/dd", "time": "09/20 08:31 A -0500"},
+        {"time_format": "hh:mm z", "time": "09/20/2026 08:31 -0500"},
+        {"time_format": "HH z", "time": "09/20/2026 08 -0500"},
+    ],
+)
+async def test_incomplete_clock_never_infers_timezone_or_missing_fields(now, changes):
+    api = AsyncMock()
+    clock = KohlerClock(api)
+    await clock.async_check(values(now, **changes), now, enabled=True, idle=True)
+    assert clock.diagnostics["status"] == "invalid_device_time"
+    assert not api.mock_calls
+
+
+async def test_manual_sync_repairs_malformed_clock_with_valid_formats(hass, now):
+    api = AsyncMock()
+    api.values.return_value = values(now, time="invalid")
+    api.system_info.return_value = {}
+    coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
+    coordinator._clock_now = lambda: now
+    await coordinator.sync_time()
+    api.save_variable.assert_awaited_once_with(2, "09/20/2026 08:31 A -0500")
+    api.values.return_value = values(now)
+    await coordinator._async_update_data()
+    assert coordinator.clock.diagnostics["status"] == "synchronized"
+
+
+async def test_partial_write_retries_from_fresh_reading_after_cooldown(
+    now, monkeypatch
+):
+    tick = 100.0
+    monkeypatch.setattr(clock_module.time, "monotonic", lambda: tick)
+    api = AsyncMock()
+    api.save_variable.side_effect = [None, OSError("clock write failed")]
+    clock = KohlerClock(api)
+    await clock.async_check(values(now, daylight=True), now, enabled=True, idle=True)
+    assert clock.diagnostics["status"] == "write_failed"
+    api.save_dt.assert_not_awaited()
+    # DST write succeeded, but the clock is still wrong. Use actual fresh values.
+    raw = values(now, time="9/20/2026 09:31 A -0500", daylight=False)
+    api.save_variable.side_effect = None
+    await clock.async_check(raw, now, enabled=True, idle=True)
+    assert api.save_variable.await_count == 2
+    tick += 3600
+    await clock.async_check(raw, now, enabled=True, idle=True)
+    assert api.save_variable.await_args_list[-1] == call(2, "09/20/2026 08:31 A -0500")
+    api.save_dt.assert_awaited_once()
+    await clock.async_check(values(now), now, enabled=True, idle=False)
+    assert clock.diagnostics["status"] == "synchronized"
