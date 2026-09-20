@@ -147,7 +147,6 @@ testing an older release. CI uses the same installer and saves `coverage.xml`
 as the `coverage` artifact. These tests use mocked devices; passing CI does not
 establish physical-device behavior.
 
-
 ## Troubleshooting
 
 - Confirm the controller is reachable from the Home Assistant host.
