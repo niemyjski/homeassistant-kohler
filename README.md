@@ -8,6 +8,7 @@ This project talks directly to the Kohler controller over your local network and
 
 - Supported hardware: Kohler DTV+
 - Transport: local polling over HTTP
+- Minimum Home Assistant version: 2026.8.2
 - Home Assistant setup: config flow
 - HACS compatible: yes
 
@@ -148,6 +149,22 @@ as the `coverage` artifact. These tests use mocked devices; passing CI does not
 establish physical-device behavior.
 
 ## Troubleshooting
+
+Failed status reads mark entities unavailable and slow scheduled polling to 30,
+60, then at most 120 seconds between attempts. A complete successful refresh
+restores normal polling (5 seconds while active and for two minutes afterward,
+15 seconds otherwise). Recovery can therefore take up to the next scheduled
+attempt. User commands and explicit refresh requests are not delayed by this
+polling backoff.
+
+For intermittent availability, enable debug logging for `custom_components.kohler`
+and `kohler` and capture two or three failures. Include the timestamps, controller
+firmware, integration version, and any local polling changes. Failure messages
+identify the endpoint, elapsed time, exception type, and next scheduled interval.
+The coordinator omits SDK exception bodies from its debug tracebacks, but the
+SDK can log response bodies independently. Review logs for identifying details
+before sharing. Backoff reduces repeated
+requests during failures; it does not establish or fix their underlying cause.
 
 - Confirm the controller is reachable from the Home Assistant host.
 - Verify the Kohler web interface responds at the configured IP address.
