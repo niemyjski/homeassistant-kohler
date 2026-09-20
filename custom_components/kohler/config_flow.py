@@ -9,13 +9,14 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from kohler import Kohler, KohlerError
 
-from .const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN
+from .const import CONF_ACCEPT_LIABILITY_TERMS, CONF_AUTO_SYNC_CLOCK, DOMAIN
 from .entity_helpers import normalize_mac_address
 
 _LOGGER = logging.getLogger(__package__)
@@ -23,6 +24,11 @@ _LOGGER = logging.getLogger(__package__)
 
 class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a Kohler config flow."""
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return KohlerOptionsFlow()
 
     VERSION = 3
 
@@ -107,3 +113,24 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         except (TimeoutError, KohlerError, OSError) as ex:
             _LOGGER.error("Error connecting to Kohler DTV+ %s", ex)
             return None
+
+
+class KohlerOptionsFlow(config_entries.OptionsFlow):
+    """Configure private clock maintenance without reloading the integration."""
+
+    async def async_step_init(self, user_input=None):
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_AUTO_SYNC_CLOCK,
+                        default=self.config_entry.options.get(
+                            CONF_AUTO_SYNC_CLOCK, True
+                        ),
+                    ): bool,
+                }
+            ),
+        )

@@ -28,6 +28,7 @@ async def async_get_config_entry_diagnostics(
     )
 
     return {
+        "clock_sync": dict(coordinator.clock.diagnostics),
         "device_info": async_redact_data(coordinator._sysInfo, TO_REDACT),
         "values": async_redact_data(coordinator._values, TO_REDACT),
         "valve1_outlet_mappings": coordinator._valve1_outlet_mappings,

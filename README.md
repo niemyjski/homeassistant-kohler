@@ -163,3 +163,24 @@ If you are adding support for more Kohler hardware, improving diagnostics, or ti
 - a short summary of the hardware or behavior being added
 - local test results
 - any screenshots or Home Assistant entity examples that help explain the change
+
+### Automatic clock synchronization
+
+Home Assistant maintains the shower clock automatically using its configured
+timezone. The integration checks at startup, hourly, and when HA's UTC offset
+changes. It corrects differences over 90 seconds and disables the controller's
+separate daylight-saving adjustment so seasonal changes are applied only once.
+Corrections wait until the shower and steam are off. Failed corrections retry no
+more than once an hour and do not make the shower entities unavailable.
+
+Clock readings and synchronization diagnostics remain internal: no ticking time
+sensor, changing timestamp attributes, or automatic button presses are added to
+Home Assistant history. Download integration diagnostics to inspect the last
+check, measured difference, write attempt, and verified result.
+
+Under **Settings → Devices & services → Kohler → Configure**, turn off
+**Automatically synchronize clock** to stop future automatic corrections. This
+does not restore the old time or re-enable the controller's DST adjustment. The
+existing **Sync Time** button performs a manual correction with controller DST
+off, even when automatic synchronization is disabled. Both paths verify the
+result on the following poll rather than assuming the write succeeded.

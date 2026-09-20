@@ -14,6 +14,7 @@ from custom_components.kohler.diagnostics import async_get_config_entry_diagnost
 async def test_diagnostics_include_error_logs():
     """Diagnostics export should include controller and Konnect logs."""
     coordinator = SimpleNamespace(
+        clock=SimpleNamespace(diagnostics={"status": "in_sync"}),
         _sysInfo={"status": "ok"},
         _values={"MAC": "00:11:22:33:44:55", "time": "3/18/2026 08:33 P -0600"},
         _valve1_outlet_mappings=[1, 2],
@@ -38,6 +39,7 @@ async def test_diagnostics_include_error_logs():
 async def test_diagnostics_capture_log_fetch_errors():
     """Diagnostics export should degrade cleanly when a log fetch fails."""
     coordinator = SimpleNamespace(
+        clock=SimpleNamespace(diagnostics={"status": "in_sync"}),
         _sysInfo={"status": "ok"},
         _values={"time": "3/18/2026 08:33 P -0600"},
         _valve1_outlet_mappings=[],

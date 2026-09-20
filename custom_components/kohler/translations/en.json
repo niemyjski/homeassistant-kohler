@@ -17,5 +17,16 @@
             "already_configured": "This Kohler device is already configured",
             "cannot_connect": "Cannot connect to the discovered Kohler device"
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Clock synchronization",
+                "description": "Home Assistant manages the shower clock and seasonal time changes, with the controller\u2019s separate daylight-saving adjustment turned off. Disabling synchronization stops future corrections; it does not restore the previous clock or daylight-saving setting.",
+                "data": {
+                    "auto_sync_clock": "Automatically synchronize clock"
+                }
+            }
+        }
     }
 }
