@@ -7,7 +7,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST
 from homeassistant.data_entry_flow import FlowResult
@@ -105,6 +104,6 @@ class KohlerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             async with asyncio.timeout(10.0):
                 values = await api.values()
             return normalize_mac_address(values.get("MAC"))
-        except (KohlerError, OSError, asyncio.TimeoutError) as ex:
+        except (TimeoutError, KohlerError, OSError) as ex:
             _LOGGER.error("Error connecting to Kohler DTV+ %s", ex)
             return None

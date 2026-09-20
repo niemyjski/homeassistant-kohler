@@ -1,7 +1,7 @@
 """Global fixtures for custom integration."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 

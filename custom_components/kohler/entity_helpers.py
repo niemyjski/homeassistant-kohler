@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import calendar
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
-import calendar
 from typing import Protocol
 
 DEFAULT_DATE_FORMAT = "m/d/yy"

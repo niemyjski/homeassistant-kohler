@@ -3,12 +3,12 @@
 import logging
 
 from homeassistant.components.light import ATTR_BRIGHTNESS, ColorMode, LightEntity
+from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.const import CONF_HOST
 
-from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from .const import DEFAULT_NAME, DOMAIN, MANUFACTURER, MODEL
 from .coordinator import KohlerDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)

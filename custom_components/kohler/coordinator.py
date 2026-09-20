@@ -1,17 +1,17 @@
 """DataUpdateCoordinator for the Kohler integration."""
 
 import asyncio
-from dataclasses import dataclass
 import functools
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from kohler import Kohler, KohlerError
@@ -37,7 +37,7 @@ def api_command(func):
             async with coordinator._api_lock:
                 async with asyncio.timeout(10.0):
                     return await func(*args, **kwargs)
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise HomeAssistantError(
                 f"Timeout communicating with Kohler API: {err}"
             ) from err
@@ -80,11 +80,11 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Kohler Data Coordinator",
+            config_entry=conf,
             update_interval=timedelta(seconds=15),
             always_update=True,
         )
         self.api = api
-        self.config_entry = conf
         self._values = {}
         self._sysInfo = {}
         self._target_temperature = None
@@ -111,7 +111,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 return {"values": self._values, "sysInfo": self._sysInfo}
         except (KohlerError, OSError) as err:
             raise UpdateFailed(f"Error communicating with Kohler API: {err}") from err
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise UpdateFailed(f"Timeout communicating with Kohler API: {err}") from err
         finally:
             current_time = time.time()
@@ -151,10 +151,10 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         return self.config_entry.data[key]
 
     def getValue(self, key: str, defaultValue=None):
-        return defaultValue if key not in self._values else self._values[key]
+        return self._values.get(key, defaultValue)
 
     def getSystemInfo(self, key, defaultValue=None):
-        return defaultValue if key not in self._sysInfo else self._sysInfo[key]
+        return self._sysInfo.get(key, defaultValue)
 
     def unitOfMeasurement(self):
         unit = self.getSystemInfo("degree_symbol")
@@ -281,8 +281,10 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             outlets.discard(outlet_id)
         return KohlerDataUpdateCoordinator._encode_outlet_state(outlets)
 
-    def _clear_pending_quick_shower(self, err: Exception | None = None) -> None:
-        """Clear queued quick shower work and resolve all pending callers."""
+    async def _async_clear_pending_quick_shower(
+        self, err: Exception | None = None
+    ) -> None:
+        """Cancel queued quick shower work and resolve all pending callers."""
         self._pending_quick_shower = None
         waiters = self._pending_quick_shower_waiters
         self._pending_quick_shower_waiters = []
@@ -293,6 +295,22 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 waiter.set_result(None)
             else:
                 waiter.set_exception(err)
+
+        task = self._pending_quick_shower_task
+        self._pending_quick_shower_task = None
+        if task is None or task is asyncio.current_task() or task.done():
+            return
+
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    async def async_shutdown(self) -> None:
+        """Cancel pending quick shower work during config entry shutdown."""
+        await super().async_shutdown()
+        await self._async_clear_pending_quick_shower()
 
     async def _async_send_quick_shower(self, state: QuickShowerState) -> None:
         """Send the latest coalesced quick shower payload."""
@@ -306,7 +324,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                         valve2_outlet=state.valve2_outlet,
                         valve2_temp=state.temperature,
                     )
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise HomeAssistantError(
                 f"Timeout communicating with Kohler API: {err}"
             ) from err
@@ -334,11 +352,18 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
 
             try:
                 await self._async_send_quick_shower(state)
+            except asyncio.CancelledError:
+                # This batch is no longer in the pending queue; its callers
+                # must be cancelled with the worker, rather than left waiting.
+                for waiter in waiters:
+                    waiter.cancel()
+                raise
             except Exception as err:
+                _LOGGER.exception("Error sending quick shower command")
                 for waiter in waiters:
                     if not waiter.done():
                         waiter.set_exception(err)
-                self._clear_pending_quick_shower(err)
+                await self._async_clear_pending_quick_shower(err)
                 return
 
             for waiter in waiters:
@@ -414,13 +439,13 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
     @api_command
     async def stop_user(self):
         """Stop arbitrary user profile operations."""
-        self._clear_pending_quick_shower()
+        await self._async_clear_pending_quick_shower()
         await self.api.stop_user()
 
     @api_command
     async def start_user(self, user_id: int):
         """Start a quick shower via a specified user profile."""
-        self._clear_pending_quick_shower()
+        await self._async_clear_pending_quick_shower()
         await self.api.start_user(user_id)
 
     def isValveInstalled(self, valve: int) -> bool:
@@ -606,7 +631,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         if self.isShowerOn():
             self._selected_outlet_state[1] = self._current_outlet_state(1)
             self._selected_outlet_state[2] = self._current_outlet_state(2)
-        self._clear_pending_quick_shower()
+        await self._async_clear_pending_quick_shower()
         await self.api.stop_shower()
 
     async def openOutlet(self, valveId, outletId):

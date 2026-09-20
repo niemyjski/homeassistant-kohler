@@ -1,12 +1,12 @@
 """Sensor platform for Kohler integration."""
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.const import CONF_HOST, EntityCategory
 from homeassistant.core import callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from .const import DEFAULT_NAME, DOMAIN, MANUFACTURER, MODEL
 from .coordinator import KohlerDataUpdateCoordinator
 
 VERSION_SENSORS = [

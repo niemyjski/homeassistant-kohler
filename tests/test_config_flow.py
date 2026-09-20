@@ -7,7 +7,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.kohler.const import DOMAIN, CONF_ACCEPT_LIABILITY_TERMS
+from custom_components.kohler.const import CONF_ACCEPT_LIABILITY_TERMS, DOMAIN
 
 
 async def test_form_valid(hass):

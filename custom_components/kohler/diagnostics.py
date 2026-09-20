@@ -9,9 +9,10 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from kohler import KohlerError
+
 from .const import DOMAIN
 from .coordinator import KohlerDataUpdateCoordinator
-from kohler import KohlerError
 
 TO_REDACT = {"MAC"}
 
@@ -47,5 +48,5 @@ async def _async_get_error_log(
             if log_type == "controller":
                 return await coordinator.api.controller_error_logs()
             return await coordinator.api.konnect_error_logs()
-    except (KohlerError, OSError, asyncio.TimeoutError) as err:
+    except (TimeoutError, KohlerError, OSError) as err:
         return {"error": str(err)}
