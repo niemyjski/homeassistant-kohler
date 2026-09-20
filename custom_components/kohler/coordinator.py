@@ -58,6 +58,7 @@ _LOGGER = logging.getLogger(__name__)
 
 QUICK_SHOWER_DEBOUNCE_SECONDS = 0.35
 POST_COMMAND_REFRESH_DELAY_SECONDS = 1.0
+POLL_RETRY_INTERVALS = (30, 60, 120)
 
 
 @dataclass(slots=True)
@@ -92,6 +93,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         self._valve1_outlet_mappings = []
         self._valve2_outlet_mappings = []
         self._last_shower_on_time = 0
+        self._poll_failures = 0
         self._api_lock = asyncio.Lock()
         self._pending_quick_shower: QuickShowerState | None = None
         self._pending_quick_shower_task: asyncio.Task[None] | None = None
@@ -101,36 +103,50 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from API endpoint."""
-        try:
-            async with self._api_lock:
-                async with asyncio.timeout(10):
-                    self._values = await self.api.values()
-                async with asyncio.timeout(10):
-                    self._sysInfo = await self.api.system_info()
-                self._mapOutlets()
-                self._sync_selected_outlet_state()
-                await self.clock.async_check(
-                    self._values,
-                    self._clock_now(),
-                    enabled=self.config_entry.options.get(CONF_AUTO_SYNC_CLOCK, True),
-                    idle=self._clock_idle(),
-                )
-                return {"values": self._values, "sysInfo": self._sysInfo}
-        except (KohlerError, OSError) as err:
-            raise UpdateFailed(f"Error communicating with Kohler API: {err}") from err
-        except TimeoutError as err:
-            raise UpdateFailed(f"Timeout communicating with Kohler API: {err}") from err
-        finally:
+        async with self._api_lock:
+            # Publish only complete snapshots, never a mix of fresh and stale reads.
+            values = await self._async_poll_endpoint("values")
+            system_info = await self._async_poll_endpoint("system_info")
+            self._values = values
+            self._sysInfo = system_info
+            self._mapOutlets()
+            self._sync_selected_outlet_state()
+            await self.clock.async_check(
+                self._values,
+                self._clock_now(),
+                enabled=self.config_entry.options.get(CONF_AUTO_SYNC_CLOCK, True),
+                idle=self._clock_idle(),
+            )
+            self._poll_failures = 0
             current_time = time.time()
             if self.isShowerOn():
                 self._last_shower_on_time = current_time
                 self.update_interval = timedelta(seconds=5)
+            elif current_time - self._last_shower_on_time < 120:
+                self.update_interval = timedelta(seconds=5)
             else:
-                time_since_last_on = current_time - self._last_shower_on_time
-                if time_since_last_on < 120:
-                    self.update_interval = timedelta(seconds=5)
-                else:
-                    self.update_interval = timedelta(seconds=15)
+                self.update_interval = timedelta(seconds=15)
+            return {"values": self._values, "sysInfo": self._sysInfo}
+
+    async def _async_poll_endpoint(self, endpoint: str):
+        """Identify failed reads and give the controller bounded recovery time."""
+        started = time.monotonic()
+        try:
+            async with asyncio.timeout(10):
+                return await getattr(self.api, endpoint)()
+        except (TimeoutError, KohlerError, OSError) as err:
+            self._poll_failures = min(
+                self._poll_failures + 1, len(POLL_RETRY_INTERVALS)
+            )
+            retry_seconds = POLL_RETRY_INTERVALS[self._poll_failures - 1]
+            self.update_interval = timedelta(seconds=retry_seconds)
+            # Exception messages from the SDK can contain raw response bodies.
+            message = (
+                f"Kohler {endpoint} failed after {time.monotonic() - started:.1f}s "
+                f"({type(err).__name__}); next scheduled poll in {retry_seconds}s"
+            )
+            _LOGGER.debug(message)
+            raise UpdateFailed(message) from err
 
     def _mapOutlets(self):
         """Map the outlets to the order on the UI."""
