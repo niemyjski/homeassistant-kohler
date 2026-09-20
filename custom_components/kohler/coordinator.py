@@ -1,17 +1,17 @@
 """DataUpdateCoordinator for the Kohler integration."""
 
 import asyncio
-from dataclasses import dataclass
 import functools
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from kohler import Kohler, KohlerError
@@ -37,7 +37,7 @@ def api_command(func):
             async with coordinator._api_lock:
                 async with asyncio.timeout(10.0):
                     return await func(*args, **kwargs)
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise HomeAssistantError(
                 f"Timeout communicating with Kohler API: {err}"
             ) from err
@@ -111,7 +111,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 return {"values": self._values, "sysInfo": self._sysInfo}
         except (KohlerError, OSError) as err:
             raise UpdateFailed(f"Error communicating with Kohler API: {err}") from err
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise UpdateFailed(f"Timeout communicating with Kohler API: {err}") from err
         finally:
             current_time = time.time()
@@ -151,10 +151,10 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
         return self.config_entry.data[key]
 
     def getValue(self, key: str, defaultValue=None):
-        return defaultValue if key not in self._values else self._values[key]
+        return self._values.get(key, defaultValue)
 
     def getSystemInfo(self, key, defaultValue=None):
-        return defaultValue if key not in self._sysInfo else self._sysInfo[key]
+        return self._sysInfo.get(key, defaultValue)
 
     def unitOfMeasurement(self):
         unit = self.getSystemInfo("degree_symbol")
@@ -324,7 +324,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                         valve2_outlet=state.valve2_outlet,
                         valve2_temp=state.temperature,
                     )
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise HomeAssistantError(
                 f"Timeout communicating with Kohler API: {err}"
             ) from err
@@ -359,6 +359,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                     waiter.cancel()
                 raise
             except Exception as err:
+                _LOGGER.exception("Error sending quick shower command")
                 for waiter in waiters:
                     if not waiter.done():
                         waiter.set_exception(err)

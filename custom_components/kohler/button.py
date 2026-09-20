@@ -3,10 +3,10 @@
 import logging
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.const import CONF_HOST, EntityCategory
+from homeassistant.helpers.device_registry import DeviceInfo
 
-from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from .const import DEFAULT_NAME, DOMAIN, MANUFACTURER, MODEL
 from .coordinator import KohlerDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)

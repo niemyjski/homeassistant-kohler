@@ -123,21 +123,30 @@ By accepting the liability terms during setup, you acknowledge that:
 
 ## Development
 
-Create a virtual environment and install the test dependencies:
+Development targets the latest stable Home Assistant release and the Python
+version it requires (currently Python 3.14). Home Assistant recommends its
+[monthly stable releases](https://www.home-assistant.io/faq/release/).
+The minimum in `requirements.txt` is a compatibility floor, not a release pin.
 
-```console
-uv venv
+Use a fresh virtual environment and install the latest stable test dependencies:
+
+```sh
+python3.14 -m venv .venv
 source .venv/bin/activate
-uv pip install -r requirements.test.txt
+python -m pip install --upgrade pip
+python scripts/install_test_dependencies.py
+pytest --cov=custom_components/kohler --cov-report=term --cov-report=xml tests
+ruff check .
+ruff format --check .
 ```
 
-Run the local checks:
+The installer reads current package versions from PyPI and requests those exact
+Home Assistant, test-harness, and Ruff releases together. If the harness has not
+caught up with Home Assistant, installation fails visibly instead of silently
+testing an older release. CI uses the same installer and saves `coverage.xml`
+as the `coverage` artifact. These tests use mocked devices; passing CI does not
+establish physical-device behavior.
 
-```console
-ruff check custom_components tests
-ruff format --check custom_components tests
-pytest
-```
 
 ## Troubleshooting
 

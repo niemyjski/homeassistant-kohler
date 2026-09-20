@@ -4,17 +4,17 @@ import logging
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    CONF_HOST,
+    PRECISION_WHOLE,
+    UnitOfTemperature,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.const import (
-    ATTR_TEMPERATURE,
-    PRECISION_WHOLE,
-    CONF_HOST,
-    UnitOfTemperature,
-)
 
-from .const import DOMAIN, MANUFACTURER, MODEL, DEFAULT_NAME
+from .const import DEFAULT_NAME, DOMAIN, MANUFACTURER, MODEL
 from .coordinator import KohlerDataUpdateCoordinator
 
 SUPPORTED_MODES = [HVACMode.OFF, HVACMode.HEAT]

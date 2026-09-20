@@ -1,17 +1,17 @@
 """Kohler Integration"""
 
 import logging
-import voluptuous as vol
 
 import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers.event import async_call_later
 
 from kohler import Kohler
 
@@ -226,8 +226,8 @@ def _async_update_outlet_entity_names(
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        if coordinator := hass.data.get(DATA_KOHLER):
-            await coordinator.async_shutdown()
-            hass.data.pop(DATA_KOHLER)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok and (coordinator := hass.data.get(DATA_KOHLER)):
+        await coordinator.async_shutdown()
+        hass.data.pop(DATA_KOHLER)
     return unload_ok
