@@ -134,3 +134,23 @@ async def test_dhcp_updates_existing_entry_by_unique_id(hass):
     assert result["type"] == data_entry_flow.FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert entry.data[CONF_HOST] == "192.0.2.30"
+
+
+async def test_clock_options_default_and_disable(hass):
+    """Clock maintenance is enabled by default and can be disabled without reload."""
+    from custom_components.kohler.const import CONF_AUTO_SYNC_CLOCK
+
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_HOST: "192.0.2.10"})
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    key = next(iter(result["data_schema"].schema))
+    assert key.default() is True
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={CONF_AUTO_SYNC_CLOCK: False}
+    )
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_AUTO_SYNC_CLOCK] is False
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    key = next(iter(result["data_schema"].schema))
+    assert key.default() is False

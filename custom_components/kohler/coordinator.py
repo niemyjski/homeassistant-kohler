@@ -5,7 +5,7 @@ import functools
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
@@ -16,10 +16,11 @@ from homeassistant.util import dt as dt_util
 
 from kohler import Kohler, KohlerError
 
+from .clock import KohlerClock
+from .const import CONF_AUTO_SYNC_CLOCK
 from .entity_helpers import (
     DEFAULT_DATE_FORMAT,
     DEFAULT_TIME_FORMAT,
-    format_kohler_datetime,
     translate_auto_purge_setting,
     translate_cold_water_setting,
     translate_connection_status,
@@ -55,7 +56,6 @@ def api_command(func):
 
 _LOGGER = logging.getLogger(__name__)
 
-DATE_TIME_SETTING_INDEX = 2
 QUICK_SHOWER_DEBOUNCE_SECONDS = 0.35
 POST_COMMAND_REFRESH_DELAY_SECONDS = 1.0
 
@@ -85,6 +85,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             always_update=True,
         )
         self.api = api
+        self.clock = KohlerClock(api)
         self._values = {}
         self._sysInfo = {}
         self._target_temperature = None
@@ -108,6 +109,12 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                     self._sysInfo = await self.api.system_info()
                 self._mapOutlets()
                 self._sync_selected_outlet_state()
+                await self.clock.async_check(
+                    self._values,
+                    self._clock_now(),
+                    enabled=self.config_entry.options.get(CONF_AUTO_SYNC_CLOCK, True),
+                    idle=self._clock_idle(),
+                )
                 return {"values": self._values, "sysInfo": self._sysInfo}
         except (KohlerError, OSError) as err:
             raise UpdateFailed(f"Error communicating with Kohler API: {err}") from err
@@ -710,18 +717,44 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
     async def check_updates(self):
         return await self.api.check_updates()
 
-    @api_command
-    async def sync_time(self):
-        """Sync the Kohler controller clock from Home Assistant's timezone."""
+    def _clock_now(self):
+        """Use HA's configured timezone, never silently substitute UTC."""
         timezone = dt_util.get_time_zone(self.hass.config.time_zone)
-        now = datetime.now(timezone) if timezone is not None else dt_util.utcnow()
-        formatted_time = format_kohler_datetime(
-            now,
-            date_format=self.getDateFormat(),
-            time_format=self.getTimeFormat(),
+        if timezone is None:
+            raise HomeAssistantError("Invalid Home Assistant timezone")
+        return dt_util.utcnow().astimezone(timezone)
+
+    def _clock_idle(self) -> bool:
+        """Defer clock writes while water, steam, or a queued shower is active."""
+        return (
+            not self.isShowerOn()
+            and all(
+                not self.isValveInstalled(valve)
+                or self.getSystemInfo(f"valve{valve}_Currentstatus") == "Off"
+                for valve in (1, 2)
+            )
+            and self.getSystemInfo("ui_steam_running") in (False, 0, "0", "false")
+            and self.getValue("shower_on") in (False, 0, "0", "false")
+            and self.getValue("steam_running") in (False, 0, "0", "false")
+            and self._pending_quick_shower is None
+            and (
+                self._pending_quick_shower_task is None
+                or self._pending_quick_shower_task.done()
+            )
         )
 
-        _LOGGER.debug("sync_time %s", formatted_time)
-        await self.api.save_variable(DATE_TIME_SETTING_INDEX, formatted_time)
-        await self.api.save_dt()
-        self._values["time"] = formatted_time
+    @api_command
+    async def sync_time(self):
+        """Manually synchronize using the same DST-safe write as maintenance."""
+        self._values = await self.api.values()
+        self._sysInfo = await self.api.system_info()
+        if not self._clock_idle():
+            raise HomeAssistantError(
+                "Wait until the shower and steam are off to sync time"
+            )
+        try:
+            await self.clock.async_sync(self._values, self._clock_now())
+        except (ValueError, TypeError) as err:
+            raise HomeAssistantError(
+                "Cannot interpret the Kohler clock settings"
+            ) from err

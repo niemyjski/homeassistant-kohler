@@ -163,3 +163,32 @@ If you are adding support for more Kohler hardware, improving diagnostics, or ti
 - a short summary of the hardware or behavior being added
 - local test results
 - any screenshots or Home Assistant entity examples that help explain the change
+
+### Automatic clock synchronization
+
+Home Assistant maintains the shower clock automatically using its configured
+timezone. This is enabled by default for both new and existing configurations;
+no migration or setup is needed. It compares the clock data already received by
+normal polling, corrects differences over 90 seconds, and disables the controller's
+separate daylight-saving adjustment so seasonal changes are applied only once.
+Corrections require explicit telemetry confirming the shower and steam are off;
+missing activity fields defer writes. Automatic corrections are limited to once an
+hour, including failed attempts. Clock failures do not make shower entities
+unavailable. A timezone or seasonal change is handled on the next eligible poll.
+
+Clock readings and synchronization diagnostics remain internal: no ticking time
+sensor, changing timestamp attributes, or automatic button presses are added to
+Home Assistant history. Download integration diagnostics to inspect the last
+check, measured difference, write attempt, and verified result. The controller
+returns formatted text with a UTC offset, not a named timezone. Unsupported or
+incomplete readings skip automatic correction; the integration never guesses a
+missing offset. Manual sync can repair a malformed clock when its advertised
+date/time formats are valid and include an offset.
+
+Under **Settings → Devices & services → Kohler → Configure**, turn off
+**Automatically synchronize clock** to stop future automatic corrections. This
+does not restore the old time or re-enable the controller's DST adjustment. The
+existing **Sync Time** button performs a manual correction with controller DST
+off, even when automatic synchronization is disabled. Both paths verify the
+result on the following poll rather than assuming the write succeeded. An
+interrupted write also requires readback and retains the correction cooldown.
