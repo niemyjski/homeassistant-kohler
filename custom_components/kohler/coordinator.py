@@ -80,11 +80,11 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Kohler Data Coordinator",
+            config_entry=conf,
             update_interval=timedelta(seconds=15),
             always_update=True,
         )
         self.api = api
-        self.config_entry = conf
         self._values = {}
         self._sysInfo = {}
         self._target_temperature = None
@@ -309,6 +309,7 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def async_shutdown(self) -> None:
         """Cancel pending quick shower work during config entry shutdown."""
+        await super().async_shutdown()
         await self._async_clear_pending_quick_shower()
 
     async def _async_send_quick_shower(self, state: QuickShowerState) -> None:
@@ -351,6 +352,12 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
 
             try:
                 await self._async_send_quick_shower(state)
+            except asyncio.CancelledError:
+                # This batch is no longer in the pending queue; its callers
+                # must be cancelled with the worker, rather than left waiting.
+                for waiter in waiters:
+                    waiter.cancel()
+                raise
             except Exception as err:
                 for waiter in waiters:
                     if not waiter.done():

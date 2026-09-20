@@ -8,6 +8,9 @@ jobs:
   tests:
     runs-on: "ubuntu-latest"
     name: Run tests
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Check out code
         uses: "actions/checkout@v7"
@@ -25,4 +28,5 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+          fail_ci_if_error: true
