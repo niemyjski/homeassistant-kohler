@@ -171,7 +171,8 @@ timezone. This is enabled by default for both new and existing configurations;
 no migration or setup is needed. It compares the clock data already received by
 normal polling, corrects differences over 90 seconds, and disables the controller's
 separate daylight-saving adjustment so seasonal changes are applied only once.
-Corrections wait until the shower and steam are off and are limited to once an
+Corrections require explicit telemetry confirming the shower and steam are off;
+missing activity fields defer writes. Automatic corrections are limited to once an
 hour, including failed attempts. Clock failures do not make shower entities
 unavailable. A timezone or seasonal change is handled on the next eligible poll.
 
@@ -189,4 +190,5 @@ Under **Settings → Devices & services → Kohler → Configure**, turn off
 does not restore the old time or re-enable the controller's DST adjustment. The
 existing **Sync Time** button performs a manual correction with controller DST
 off, even when automatic synchronization is disabled. Both paths verify the
-result on the following poll rather than assuming the write succeeded.
+result on the following poll rather than assuming the write succeeded. An
+interrupted write also requires readback and retains the correction cooldown.

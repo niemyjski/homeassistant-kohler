@@ -43,6 +43,10 @@ def values(now, **changes):
         ("dd/mm/yy", "HH:mm:ss Z"),
         ("mm-dd-y", "h:m tt z"),
         ("yy-mm-dd", "HH:mm:ss z"),
+        ("MM d yy", "hh:mm T z"),
+        ("DD, M d yy", "hh:mm TT z"),
+        ("yy-mm-dd 'at'", "hh:mm T z"),
+        ("yy-mm-dd 'a'", "hh:mm T z"),
     ],
 )
 @pytest.mark.parametrize(
@@ -131,7 +135,6 @@ async def test_failed_writes_back_off_even_across_timezone_change(
         {"time": None},
         {"time": "invalid"},
         {"time": "02/30/2026 08:31 A -0500"},
-        {"date_format": "MM d yy"},
         {"daylight": None},
         {"date_format": None},
         {"time_format": ""},
@@ -217,7 +220,7 @@ async def test_poll_failure_isolated_and_manual_sync_uses_readback(hass, now):
     api = AsyncMock()
     raw = values(now, daylight=True)
     api.values.return_value = raw
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
     coordinator._clock_now = lambda: now
     api.save_dt.side_effect = KohlerError("failed")
@@ -244,7 +247,7 @@ async def test_poll_failure_isolated_and_manual_sync_uses_readback(hass, now):
 async def test_no_clock_write_during_shower_or_steam(hass, now, active):
     api = AsyncMock()
     api.values.return_value = values(now, daylight=True, **active)
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
     coordinator._clock_now = lambda: now
     await coordinator._async_update_data()
@@ -257,7 +260,7 @@ async def test_no_clock_write_during_shower_or_steam(hass, now, active):
 async def test_option_disabled_prevents_poll_writes(hass, now):
     api = AsyncMock()
     api.values.return_value = values(now, daylight=True)
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     entry = MockConfigEntry(domain=DOMAIN, options={CONF_AUTO_SYNC_CLOCK: False})
     coordinator = KohlerDataUpdateCoordinator(hass, api, entry)
     coordinator._clock_now = lambda: now
@@ -300,7 +303,10 @@ async def test_clock_only_polls_do_not_change_entity_states(hass, now, monkeypat
         valve1_installed=True,
     )
     api.values.return_value = raw
-    api.system_info.return_value = {"valve1_Currentstatus": "Off"}
+    api.system_info.return_value = {
+        "valve1_Currentstatus": "Off",
+        "ui_steam_running": False,
+    }
     entry = MockConfigEntry(domain=DOMAIN, data={"host": "192.0.2.10"})
     coordinator = KohlerDataUpdateCoordinator(hass, api, entry)
     coordinator._clock_now = lambda: now
@@ -368,7 +374,7 @@ async def test_manual_sync_uses_ha_timezone_when_automatic_disabled(
     api = AsyncMock()
     expected = datetime(2026, 9, 20, 13, 31, 29, tzinfo=UTC).astimezone(ZoneInfo(zone))
     api.values.return_value = values(expected, daylight=True)
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     entry = MockConfigEntry(domain=DOMAIN, options={CONF_AUTO_SYNC_CLOCK: False})
     coordinator = KohlerDataUpdateCoordinator(hass, api, entry)
     await coordinator.sync_time()
@@ -386,7 +392,10 @@ async def test_manual_sync_uses_ha_timezone_when_automatic_disabled(
 async def test_installed_valve_must_be_confirmed_off(hass, now, status):
     api = AsyncMock()
     api.values.return_value = values(now, daylight=True, valve1_installed=True)
-    api.system_info.return_value = {"valve1_Currentstatus": status}
+    api.system_info.return_value = {
+        "valve1_Currentstatus": status,
+        "ui_steam_running": False,
+    }
     coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
     coordinator._clock_now = lambda: now
     await coordinator._async_update_data()
@@ -396,7 +405,7 @@ async def test_installed_valve_must_be_confirmed_off(hass, now, status):
 async def test_manual_invalid_format_is_home_assistant_error(hass, now):
     api = AsyncMock()
     api.values.return_value = values(now, time_format="HH:mm")
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
     with pytest.raises(HomeAssistantError, match="Cannot interpret"):
         await coordinator.sync_time()
@@ -407,7 +416,7 @@ async def test_existing_entry_without_option_defaults_to_enabled(hass, now):
     """Existing entries need neither migration nor an options save to sync."""
     api = AsyncMock()
     api.values.return_value = values(now, daylight=True)
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     entry = MockConfigEntry(domain=DOMAIN, options={})
     coordinator = KohlerDataUpdateCoordinator(hass, api, entry)
     coordinator._clock_now = lambda: now
@@ -437,7 +446,7 @@ async def test_incomplete_clock_never_infers_timezone_or_missing_fields(now, cha
 async def test_manual_sync_repairs_malformed_clock_with_valid_formats(hass, now):
     api = AsyncMock()
     api.values.return_value = values(now, time="invalid")
-    api.system_info.return_value = {}
+    api.system_info.return_value = {"ui_steam_running": False}
     coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
     coordinator._clock_now = lambda: now
     await coordinator.sync_time()
@@ -469,3 +478,81 @@ async def test_partial_write_retries_from_fresh_reading_after_cooldown(
     api.save_dt.assert_awaited_once()
     await clock.async_check(values(now), now, enabled=True, idle=False)
     assert clock.diagnostics["status"] == "synchronized"
+
+
+@pytest.mark.parametrize("missing", ["ui_steam_running", "steam_running", "shower_on"])
+async def test_missing_activity_telemetry_defers_all_clock_writes(hass, now, missing):
+    api = AsyncMock()
+    api.values.return_value = values(now, daylight=True, steam_installed=True)
+    api.system_info.return_value = {"ui_steam_running": False}
+    api.values.return_value.pop(missing, None)
+    api.system_info.return_value.pop(missing, None)
+    coordinator = KohlerDataUpdateCoordinator(hass, api, MockConfigEntry(domain=DOMAIN))
+    coordinator._clock_now = lambda: now
+    await coordinator._async_update_data()
+    with pytest.raises(HomeAssistantError, match="off"):
+        await coordinator.sync_time()
+    api.save_variable.assert_not_awaited()
+
+
+async def test_outer_timeout_preserves_cancellation_and_verifies_next_poll(now):
+    import asyncio
+
+    api = AsyncMock()
+
+    async def slow_write(*args):
+        await asyncio.sleep(10)
+
+    api.save_variable.side_effect = slow_write
+    clock = KohlerClock(api)
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.01):
+            await clock.async_sync(values(now), now)
+    assert clock.diagnostics["status"] == "write_interrupted"
+    await clock.async_check(values(now), now, enabled=False, idle=False)
+    assert clock.diagnostics["status"] == "synchronized"
+    assert api.save_variable.await_count == 1
+
+
+@pytest.mark.parametrize(
+    "date_fmt,time_fmt,raw",
+    [
+        ("MM d yy", "hh:mm T z", "September 20 2026 08:31 A -0500"),
+        ("DD, M d yy 'at'", "hh:mm TT z", "Sunday, Sep 20 2026 at 08:31 AM -0500"),
+        ("yy-mm-dd 'a %Y'", "HH:mm z", "2026-09-20 a %Y 08:31 -0500"),
+        ("yy-mm-dd at", "HH:mm z", "2026-09-20 at 08:31 -0500"),
+    ],
+)
+def test_read_format_contract_with_literal_device_readings(
+    now, date_fmt, time_fmt, raw
+):
+    parsed = parse_device_time(
+        values(now, date_format=date_fmt, time_format=time_fmt, time=raw)
+    )
+    assert parsed == now.replace(second=0)
+
+
+@pytest.mark.parametrize(
+    "fraction,microsecond", [("l", 123000), ("c", 456), ("lc", 123456)]
+)
+def test_fractional_time_format_contract(now, fraction, microsecond):
+    instant = now.replace(microsecond=microsecond)
+    time_fmt = "HH:mm:ss." + fraction + " z"
+    raw = format_kohler_datetime(instant, "mm/dd/yy", time_fmt)
+    assert parse_device_time(values(now, time_format=time_fmt, time=raw)) == instant
+
+
+async def test_cancelled_write_with_mismatched_readback_keeps_cooldown(now):
+    import asyncio
+
+    api = AsyncMock()
+    api.save_dt.side_effect = asyncio.CancelledError
+    clock = KohlerClock(api)
+    raw = values(now, daylight=True)
+    with pytest.raises(asyncio.CancelledError):
+        await clock.async_sync(raw, now)
+    assert clock.diagnostics["status"] == "write_interrupted"
+    await clock.async_check(raw, now, enabled=True, idle=True)
+    assert clock.diagnostics["status"] == "verification_failed"
+    await clock.async_check(raw, now, enabled=True, idle=True)
+    api.save_dt.assert_awaited_once()

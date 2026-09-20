@@ -733,10 +733,9 @@ class KohlerDataUpdateCoordinator(DataUpdateCoordinator):
                 or self.getSystemInfo(f"valve{valve}_Currentstatus") == "Off"
                 for valve in (1, 2)
             )
-            and self.getSystemInfo("ui_steam_running", False)
-            in (False, 0, "0", "false")
-            and self.getValue("shower_on", False) in (False, 0, "0", "false")
-            and self.getValue("steam_running", False) in (False, 0, "0", "false")
+            and self.getSystemInfo("ui_steam_running") in (False, 0, "0", "false")
+            and self.getValue("shower_on") in (False, 0, "0", "false")
+            and self.getValue("steam_running") in (False, 0, "0", "false")
             and self._pending_quick_shower is None
             and (
                 self._pending_quick_shower_task is None

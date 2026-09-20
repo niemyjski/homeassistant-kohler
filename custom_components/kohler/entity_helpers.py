@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -205,7 +206,7 @@ def _render_date_format(value: datetime, format_string: str) -> str:
 
     return _render_tokens(
         format_string,
-        ("DD", "MM", "dd", "mm", "yy", "D", "M", "d", "m", "y"),
+        tuple(_DATE_TOKENS),
         replacements,
     )
 
@@ -227,6 +228,7 @@ def _render_time_format(value: datetime, format_string: str) -> str:
         "m": str(value.minute),
         "ss": f"{value.second:02d}",
         "s": str(value.second),
+        "lc": f"{value.microsecond:06d}",
         "l": f"{value.microsecond // 1000:03d}",
         "c": f"{value.microsecond % 1000:03d}",
         "z": timezone_no_colon,
@@ -239,64 +241,127 @@ def _render_time_format(value: datetime, format_string: str) -> str:
 
     return _render_tokens(
         format_string,
-        (
-            "HH",
-            "hh",
-            "mm",
-            "ss",
-            "TT",
-            "tt",
-            "H",
-            "h",
-            "m",
-            "s",
-            "l",
-            "c",
-            "z",
-            "Z",
-            "T",
-            "t",
-        ),
+        tuple(_TIME_TOKENS),
         replacements,
     )
 
 
-def _render_tokens(
-    format_string: str,
-    tokens: tuple[str, ...],
-    replacements: dict[str, str],
-) -> str:
-    parts: list[str] = []
+def _format_parts(format_string: str, tokens: tuple[str, ...]):
+    """Yield tokens and quoted/literal text using the same grammar in both directions."""
     index = 0
-
     while index < len(format_string):
         if format_string[index] == "'":
-            end_index = format_string.find("'", index + 1)
-            if end_index == -1:
-                parts.append(format_string[index + 1 :])
-                break
-
-            parts.append(format_string[index + 1 : end_index])
-            index = end_index + 1
+            end = format_string.find("'", index + 1)
+            if end == -1:
+                yield False, format_string[index + 1 :]
+                return
+            yield False, format_string[index + 1 : end]
+            index = end + 1
             continue
-
-        token = next(
-            (
-                candidate
-                for candidate in tokens
-                if format_string.startswith(candidate, index)
-            ),
-            None,
-        )
+        token = next((t for t in tokens if format_string.startswith(t, index)), None)
         if token is None:
-            parts.append(format_string[index])
+            start = index
             index += 1
-            continue
+            while (
+                index < len(format_string)
+                and format_string[index] != "'"
+                and not any(format_string.startswith(t, index) for t in tokens)
+            ):
+                index += 1
+            yield False, format_string[start:index]
+        else:
+            yield True, token
+            index += len(token)
 
-        parts.append(replacements[token])
-        index += len(token)
 
-    return "".join(parts)
+def _render_tokens(format_string, tokens, replacements) -> str:
+    return "".join(
+        replacements[part] if is_token else part
+        for is_token, part in _format_parts(format_string, tokens)
+    )
+
+
+_DATE_TOKENS = {
+    "DD": "%A",
+    "MM": "%B",
+    "dd": "%d",
+    "mm": "%m",
+    "yy": "%Y",
+    "D": "%a",
+    "M": "%b",
+    "d": "%d",
+    "m": "%m",
+    "y": "%y",
+}
+_TIME_TOKENS = {
+    "lc": "%f",
+    "HH": "%H",
+    "hh": "%I",
+    "mm": "%M",
+    "ss": "%S",
+    "TT": "%p",
+    "tt": "%p",
+    "H": "%H",
+    "h": "%I",
+    "m": "%M",
+    "s": "%S",
+    "l": "%f",
+    "c": "%f",
+    "z": "%z",
+    "Z": "%z",
+    "T": "%p",
+    "t": "%p",
+}
+
+
+def _expand_meridiem(value: str) -> str:
+    """Python expects AM/PM; Kohler also emits A/P. Normalize literals equally."""
+    return re.sub(
+        r"\b([ap])\b", lambda m: m[1].upper() + "M", value, flags=re.IGNORECASE
+    )
+
+
+def parse_kohler_datetime(
+    value: object, date_format: object, time_format: object
+) -> datetime:
+    """Parse an explicitly offset-bearing clock without guessing missing fields."""
+    directives: set[str] = set()
+    submillisecond_only = False
+
+    def convert(fmt: object, tokens: dict[str, str]) -> str:
+        nonlocal submillisecond_only
+        if not isinstance(fmt, str) or not fmt:
+            raise ValueError("Missing device clock format")
+        result = []
+        for is_token, part in _format_parts(fmt, tuple(tokens)):
+            if is_token:
+                if part == "c":
+                    submillisecond_only = True
+                directives.add(tokens[part])
+                result.append(tokens[part])
+            else:
+                result.append(_expand_meridiem(part).replace("%", "%%"))
+        return "".join(result)
+
+    fmt = convert(date_format, _DATE_TOKENS) + " " + convert(time_format, _TIME_TOKENS)
+    if not (
+        directives & {"%Y", "%y"}
+        and directives & {"%m", "%b", "%B"}
+        and {"%d", "%M", "%z"} <= directives
+        and ("%H" in directives or {"%I", "%p"} <= directives)
+    ):
+        raise ValueError(
+            "Device clock must include a complete date, time, and UTC offset"
+        )
+    if not isinstance(value, str):
+        raise TypeError("Missing device clock")
+    try:
+        parsed = datetime.strptime(_expand_meridiem(value), fmt)  # noqa: DTZ007 - %z required above
+        if submillisecond_only:
+            parsed = parsed.replace(microsecond=parsed.microsecond // 1000)
+        return parsed
+    except re.PatternError as err:
+        raise ValueError("Invalid device clock format") from err
 
 
 def translate_cold_water_setting(value: object) -> str | None:

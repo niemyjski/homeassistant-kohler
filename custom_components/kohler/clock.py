@@ -2,13 +2,12 @@
 
 import asyncio
 import logging
-import re
 import time
 from datetime import datetime
 
 from kohler import Kohler, KohlerError
 
-from .entity_helpers import format_kohler_datetime
+from .entity_helpers import format_kohler_datetime, parse_kohler_datetime
 
 _LOGGER = logging.getLogger(__name__)
 CORRECTION_INTERVAL = 3600
@@ -18,62 +17,10 @@ DAYLIGHT_SETTING_INDEX = 3
 
 
 def parse_device_time(values: dict) -> datetime:
-    """Read numeric Kohler UI formats, including one-letter AM/PM and offsets."""
-    date_tokens = {"yy": "%Y", "y": "%y", "mm": "%m", "m": "%m", "dd": "%d", "d": "%d"}
-    time_tokens = {
-        "HH": "%H",
-        "H": "%H",
-        "hh": "%I",
-        "h": "%I",
-        "mm": "%M",
-        "m": "%M",
-        "ss": "%S",
-        "s": "%S",
-        "TT": "%p",
-        "T": "%p",
-        "tt": "%p",
-        "t": "%p",
-        "z": "%z",
-        "Z": "%z",
-    }
-
-    def convert(fmt, tokens):
-        if not isinstance(fmt, str) or "%" in fmt:
-            raise ValueError("Unsupported device clock format")
-
-        def replace(match):
-            try:
-                return tokens[match[0]]
-            except KeyError as err:
-                raise ValueError("Unsupported device clock format") from err
-
-        return re.sub(r"([a-zA-Z])\1*", replace, fmt)
-
-    fmt = (
-        convert(values.get("date_format"), date_tokens)
-        + " "
-        + convert(values.get("time_format"), time_tokens)
+    """Read the clock using the shared Kohler date/time format contract."""
+    return parse_kohler_datetime(
+        values.get("time"), values.get("date_format"), values.get("time_format")
     )
-    # A comparison needs a complete date, clock, and explicit UTC offset.
-    # Never infer the controller's timezone or let strptime default missing fields.
-    if not (
-        ("%Y" in fmt or "%y" in fmt)
-        and all(token in fmt for token in ("%m", "%d", "%M", "%z"))
-        and ("%H" in fmt or ("%I" in fmt and "%p" in fmt))
-    ):
-        raise ValueError(
-            "Device clock must include a complete date, time, and UTC offset"
-        )
-    value = values.get("time")
-    if not isinstance(value, str):
-        raise TypeError("Missing device clock")
-    value = re.sub(
-        r"\b([ap])\b", lambda m: m[1].upper() + "M", value, flags=re.IGNORECASE
-    )
-    try:
-        return datetime.strptime(value, fmt)  # noqa: DTZ007 - %z is required above
-    except re.PatternError as err:
-        raise ValueError("Invalid device clock format") from err
 
 
 def daylight_enabled(values: dict) -> bool:
@@ -163,6 +110,12 @@ class KohlerClock:
                     formatted,  # type: ignore[arg-type]
                 )
                 await self.api.save_dt()
+        except asyncio.CancelledError:
+            # The enclosing command timeout or unload can interrupt a partial write.
+            # Preserve cancellation, but read back before trusting its outcome.
+            self._pending_verification = True
+            self.diagnostics["status"] = "write_interrupted"
+            raise
         except KohlerError, OSError, TimeoutError:
             self.diagnostics["status"] = "write_failed"
             raise
